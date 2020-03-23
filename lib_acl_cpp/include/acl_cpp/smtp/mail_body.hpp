@@ -2,7 +2,10 @@
 #include "../acl_cpp_define.hpp"
 #include <vector>
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "../http/http_ctype.hpp"
+
+#if !defined(ACL_MIME_DISABLE)
 
 namespace acl {
 
@@ -12,7 +15,7 @@ class mail_attach;
 /**
  * 邮件正文构建类
  */
-class ACL_CPP_API mail_body
+class ACL_CPP_API mail_body : public noncopyable
 {
 public:
 	/**
@@ -203,3 +206,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_MIME_DISABLE)

@@ -15,9 +15,11 @@ int main(int argc, char* argv[])
 	if (argc >= 2)
 		addr = argv[1];
 
+	acl::acl_cpp_init();
+
 	if (client.open(addr, 0, 0) == false)
 	{
-		printf("open %s error\n", addr.c_str());
+		printf("open %s error %s\n", addr.c_str(), acl::last_serror());
 		return 1;
 	}
 	else

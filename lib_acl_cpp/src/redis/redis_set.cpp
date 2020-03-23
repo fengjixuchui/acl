@@ -7,6 +7,8 @@
 #include "acl_cpp/redis/redis_set.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -88,7 +90,7 @@ bool redis_set::spop(const char* key, string& buf)
 
 	hash_slot(key);
 	build_request(2, argv, lens);
-	return get_string(buf) < 0 ? false : true;
+	return get_string(buf) > 0 ? true : false;
 }
 
 int redis_set::scard(const char* key)
@@ -433,8 +435,7 @@ int redis_set::sscan(const char* key, int cursor, std::vector<string>& out,
 
 	out.reserve(out.size() + size);
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		rr = children[i];
 		rr->argv_to_string(key_buf);
 		out.push_back(key_buf);
@@ -445,3 +446,5 @@ int redis_set::sscan(const char* key, int cursor, std::vector<string>& out,
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

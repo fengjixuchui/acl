@@ -9,6 +9,8 @@
 #include "acl_cpp/redis/redis_sentinel.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -94,8 +96,8 @@ bool redis_sentinel::sentinel_master(const char* name, redis_master& out)
 		return false;
 
 	for (std::map<string, string>::const_iterator cit = result.begin();
-		cit != result.end(); ++cit)
-	{
+		cit != result.end(); ++cit) {
+
 		master_add_member(cit->first, cit->second, out);
 	}
 
@@ -118,11 +120,9 @@ static void add_master(const redis_result& in, std::vector<redis_master>& out)
 
 	string name, value;
 	const redis_result* rr;
-	for (size_t i = 0; i < size;)
-	{
+	for (size_t i = 0; i < size;) {
 		rr = children[i];
-		if (rr->get_type() != REDIS_RESULT_STRING)
-		{
+		if (rr->get_type() != REDIS_RESULT_STRING) {
 			i += 2;
 			continue;
 		}
@@ -162,8 +162,7 @@ bool redis_sentinel::sentinel_masters(std::vector<redis_master>& out)
 	if (children == NULL || size == 0)
 		return true;
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		const redis_result* child = children[i];
 		add_master(*child, out);
 	}
@@ -234,11 +233,9 @@ static void add_slave(const redis_result& in, std::vector<redis_slave>& out)
 	redis_slave slave;
 	string name, value;
 	const redis_result* rr;
-	for (size_t i = 0; i < size;)
-	{
+	for (size_t i = 0; i < size;) {
 		rr = children[i];
-		if (rr->get_type() != REDIS_RESULT_STRING)
-		{
+		if (rr->get_type() != REDIS_RESULT_STRING) {
 			i += 2;
 			continue;
 		}
@@ -282,8 +279,7 @@ bool redis_sentinel::sentinel_slaves(const char* master_name,
 	if (children == NULL || size == 0)
 		return true;
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		const redis_result* child = children[i];
 		add_slave(*child, out);
 	}
@@ -452,3 +448,5 @@ bool redis_sentinel::sentinel_set(const char* master_name, const char* name,
 }
 
 }
+
+#endif // ACL_CLIENT_ONLY

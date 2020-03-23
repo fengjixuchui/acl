@@ -34,23 +34,27 @@ typedef struct ACL_DOMAIN_GROUP {
 
 struct ACL_DNS_REQ{
 	char  key[RFC1035_MAXHOSTNAMESZ + 16];
-	void (*callback)(ACL_DNS_DB *, void *, int);
+	void (*callback)(ACL_DNS_DB*, void*, int);
 	void *ctx;
-	unsigned short qid;
 	int   nretry;
 	ACL_DNS *dns;
+	unsigned short qid;
 };
 
-static void dns_stream_open(ACL_DNS *dns);
+#define SAFE_COPY ACL_SAFE_STRNCPY
+
+static int dns_stream_open(ACL_DNS *dns);
 
 /* ACL_VSTREAM: 从数据流读取数据的回调函数 */
 
 static int dns_read(ACL_SOCKET fd, void *buf, size_t size,
 	int timeout acl_unused, ACL_VSTREAM *stream acl_unused, void *arg)
 {       
-	const char *myname = "dns_read";
 	ACL_DNS *dns = (ACL_DNS*) arg;
-	int   ret;
+	int      ret;
+
+	/* xxx: 必须先将系统可读标志位置0，以免引起事件引擎的重复触发 */
+	stream->read_ready = 0;
 
 	dns->addr_from.addr_len = sizeof(dns->addr_from.addr);
 #ifdef ACL_UNIX
@@ -61,12 +65,13 @@ static int dns_read(ACL_SOCKET fd, void *buf, size_t size,
 	ret = recvfrom(fd, (char*) buf, (int) size, 0,
 			(struct sockaddr*) &dns->addr_from.addr,
 			&dns->addr_from.addr_len);
-#else   
+#else
 #error "unknown OS"     
-#endif                  
-	if (ret < 0)
-		acl_msg_error("%s, %s(%d): recvfrom error(%s)",
-			__FILE__, myname, __LINE__, acl_last_serror());
+#endif
+	if (ret < 0) {
+		acl_msg_error("%s, %s(%d): recvfrom error %s",
+			__FILE__, __FUNCTION__, __LINE__, acl_last_serror());
+	}
 	return ret;
 }
 
@@ -75,32 +80,41 @@ static int dns_read(ACL_SOCKET fd, void *buf, size_t size,
 static int dns_write(ACL_SOCKET fd, const void *buf, size_t size,
 	int timeout acl_unused, ACL_VSTREAM *stream acl_unused, void *arg)
 {       
-	const char *myname = "dns_write";
 	ACL_DNS *dns = (ACL_DNS*) arg;
-	int   ret;
+	int      ret;
 	unsigned short i;
-	ACL_DNS_ADDR *addr;
+	ACL_DNS_ADDR  *addr;
 
-	if (dns->dns_list->count <= 0)
+	if (dns->dns_list->count <= 0) {
 		acl_msg_fatal("%s(%d): dns_list's size(%d) invalid",
-			myname, __LINE__, dns->dns_list->count);
+			__FUNCTION__, __LINE__, dns->dns_list->count);
+	}
 
 	/* 根据当前ID号取模获得目标DNS地址 */
-	i = dns->qid % dns->dns_list->count;
+	i = dns->dns_idx++ % dns->dns_list->count;
+	if (dns->dns_idx == (unsigned) dns->dns_list->count) {
+		dns->dns_idx = 0;
+	}
+
 	addr = acl_array_index(dns->dns_list, i);
-	if (addr == NULL)
+	if (addr == NULL) {
 		acl_msg_fatal("%s(%d): addr null for %d",
-			myname, __LINE__, i);
+			__FUNCTION__, __LINE__, i);
+	}
 
 #ifdef ACL_UNIX 
 	ret = (int) sendto(fd, buf, size, 0,
 			(struct sockaddr*) &addr->addr, addr->addr_len);
 #elif defined(ACL_WINDOWS)
-	ret = sendto(fd, (const char*) buf, (int) size,
-			0, (struct sockaddr*) &addr->addr, addr->addr_len);
+	ret = sendto(fd, (const char*) buf, (int) size, 0,
+			(struct sockaddr*) &addr->addr, addr->addr_len);
 #else
 #error  "unknown OS"
 #endif
+	if (ret < 0) {
+		acl_msg_error("%s, %s(%d): sendto error %s",
+			__FILE__, __FUNCTION__, __LINE__, acl_last_serror());
+	}
 	return ret;
 }
 
@@ -114,8 +128,9 @@ static ACL_DNS_DB *build_dns_db(const rfc1035_message *res, int count,
 	ACL_SOCKADDR *saddr;
 	int   i;
 
-	if (ttl_min)
+	if (ttl_min) {
 		*ttl_min = 100000000;
+	}
 
 	for (i = 0; i < count; i++) {
 		if (res->answer[i].type == RFC1035_TYPE_A) {
@@ -138,15 +153,16 @@ static ACL_DNS_DB *build_dns_db(const rfc1035_message *res, int count,
 			/* 目前该模块仅支持 IPV4 */
 			saddr->sa.sa_family = AF_INET;
 
-			if (inet_ntop(AF_INET, &saddr->in.sin_addr,
+			if (!inet_ntop(AF_INET, &saddr->in.sin_addr,
 				phost->ip, sizeof(phost->ip))) {
 
 				continue;
 			}
 
 			phost->ttl = res->answer[i].ttl;
-			if (ttl_min && *ttl_min > phost->ttl)
+			if (ttl_min && *ttl_min > phost->ttl) {
 				*ttl_min = phost->ttl;
+			}
 
 			(void) acl_array_append(dns_db->h_db, phost);
 			dns_db->size++;
@@ -156,41 +172,134 @@ static ACL_DNS_DB *build_dns_db(const rfc1035_message *res, int count,
 	return dns_db;
 }
 
+static int dns_safe_addr_check(ACL_DNS *dns)
+{
+	char  from[64];
+	ACL_ITER iter;
+
+	/* 检查响应包的 DNS 地址与本地配置的地址是否匹配 */
+	acl_foreach(iter, dns->dns_list) {
+		ACL_DNS_ADDR *addr = (ACL_DNS_ADDR*) iter.data;
+
+		if (dns->addr_from.addr.in.sin_addr.s_addr
+			== addr->addr.in.sin_addr.s_addr) {
+			return 0;
+		}
+	}
+
+	inet_ntop(AF_INET, &dns->addr_from.addr.in.sin_addr, from, sizeof(from));
+	acl_msg_warn("%s(%d): invalid from=%s", __FUNCTION__, __LINE__, from);
+
+	return -1;
+}
+
+static int dns_safe_net_check(ACL_DNS *dns)
+{
+	char  from[64];
+	ACL_ITER iter;
+
+	acl_foreach(iter, dns->dns_list) {
+		ACL_DNS_ADDR *addr = (ACL_DNS_ADDR*) iter.data;
+		struct in_addr in;
+
+		in.s_addr = dns->addr_from.addr.in.sin_addr.s_addr;
+		acl_mask_addr((unsigned char*) &in.s_addr,
+			sizeof(in.s_addr), addr->mask_length);
+
+		if (in.s_addr == addr->in.s_addr) {
+			return 0;
+		}
+	}
+
+	inet_ntop(AF_INET, &dns->addr_from.addr.in.sin_addr, from, sizeof(from));
+	acl_msg_warn("%s(%d): invalid from=%s", __FUNCTION__, __LINE__, from);
+	return -1;
+}
+
+static void dns_lookup_error(ACL_DNS *dns, rfc1035_message *res)
+{
+	char  key[RFC1035_MAXHOSTNAMESZ + 16];
+	ACL_DNS_REQ *req;
+
+	snprintf(key, sizeof(key), "%s:%d", res->query->name, res->id);
+	acl_lowercase(key);
+	req = acl_htable_find(dns->lookup_table, key);
+
+	if (req) {
+		/* 取消定时器 */
+		acl_aio_cancel_timer(dns->aio, dns->lookup_timeout, req);
+
+		/* 从查询列表删除该查询对象 */
+		acl_htable_delete(dns->lookup_table, req->key, NULL);
+
+		/* 通知应用查询失败 */
+		req->callback(NULL, req->ctx, res->rcode);
+
+		/* 释放该查询对象 */
+		acl_myfree(req);
+	}
+}
+
+static void dns_lookup_ok(ACL_DNS *dns, rfc1035_message *res, int len)
+{
+	char  key[RFC1035_MAXHOSTNAMESZ + 16];
+	int   ttl_min;
+	ACL_DNS_REQ *req;
+	ACL_DNS_DB  *dns_db;
+
+	acl_lowercase(res->query->name);
+	snprintf(key, sizeof(key), "%s:%d", res->query->name, res->id);
+
+	req = acl_htable_find(dns->lookup_table, key);
+	if (req == NULL) {
+		return;
+	}
+
+	/* 取消定时器 */
+	acl_aio_cancel_timer(dns->aio, dns->lookup_timeout, req);
+
+	/* 从查询列表删除该查询对象 */
+	acl_htable_delete(dns->lookup_table, req->key, NULL);
+
+	/* 创建 DNS 查询结果缓存对象，并加入本地缓存中 */
+	dns_db = build_dns_db(res, len, (unsigned int*) &ttl_min);
+
+	/* 设置返回本次查询结果所使用的 DNS 服务器地址*/
+	acl_netdb_set_ns(dns_db, &dns->addr_from.addr);
+
+	/* 回调函数用户的回调函数 */
+	req->callback(dns_db, req->ctx, res->rcode);
+
+	/* 释放该查询对象 */
+	acl_myfree(req);
+
+	/* 如果缓存机制允许则缓存该查询结果 */
+
+	if (dns->dns_cache == NULL || ttl_min <= 0
+		|| acl_cache2_enter(dns->dns_cache, res->query->name,
+			dns_db, ttl_min) == NULL) {
+
+		acl_netdb_free(dns_db);
+	}
+}
+
 /* 有DNS服务器数据可读时的回调函数 */
 
 static int dns_lookup_callback(ACL_ASTREAM *astream acl_unused, void *ctx,
 	char *data, int dlen)
 {
-	const char *myname = "dns_lookup_callback";
 	ACL_DNS *dns = (ACL_DNS*) ctx;
-	int   ret;
-	ACL_DNS_REQ *handle;
 	rfc1035_message *res;
-	char  key[RFC1035_MAXHOSTNAMESZ + 16];
+	int  ret;
 
 	/* 解析DNS响应数据包 */
 	ret = rfc1035MessageUnpack(data, dlen, &res);
 	if (ret < 0) {
-		if (res == NULL)
-			return (0);
-
-		snprintf(key, sizeof(key), "%s:%d", res->query->name, res->id);
-		acl_lowercase(key);
-		handle = acl_htable_find(dns->lookup_table, key);
-
-		if (handle) {
-			void (*callback)(ACL_DNS_DB*, void*, int) = handle->callback;
-			void *arg = handle->ctx;
-
-			/* 取消定时器 */
-			acl_aio_cancel_timer(dns->aio, dns->lookup_timeout, handle);
-			/* 释放该查询对象 */
-			acl_htable_delete(dns->lookup_table, handle->key, NULL);
-			acl_myfree(handle);
-			/* 通知应用查询失败 */
-			callback(NULL, arg, res->rcode);
+		if (res == NULL) {
+			return 0;
 		}
 
+		dns_lookup_error(dns, res);
 		rfc1035MessageDestroy(res);
 		return 0;
 	} else if (ret == 0) {
@@ -201,27 +310,7 @@ static int dns_lookup_callback(ACL_ASTREAM *astream acl_unused, void *ctx,
 	/* 是否检查 DNS 源/目的地址, 以保证安全性 */
 
 	if ((dns->flag & ACL_DNS_FLAG_CHECK_DNS_IP)) {
-		ACL_DNS_ADDR *addr;
-		unsigned short i;
-
-		/* 获得本数据包对应的 DNS 地址索引 */
-		i = (res->id + 1) % dns->dns_list->count;
-		addr = acl_array_index(dns->dns_list, i);
-		if (addr == NULL)
-			acl_msg_fatal("%s(%d): addr null for %d",
-				myname, __LINE__, i);
-
-		if (dns->addr_from.addr.in.sin_addr.s_addr
-			!= addr->addr.in.sin_addr.s_addr) {
-
-			char  from[64], to[64];
-
-			inet_ntop(AF_INET, &dns->addr_from.addr.in.sin_addr,
-				from, sizeof(from));
-			inet_ntop(AF_INET, &addr->addr.in.sin_addr,
-				to, sizeof(to));
-			acl_msg_warn("%s(%d): from(%s) != to(%s)",
-				myname, __LINE__, from, to);
+		if (dns_safe_addr_check(dns) < 0) {
 			rfc1035MessageDestroy(res);
 			return 0;
 		}
@@ -230,73 +319,22 @@ static int dns_lookup_callback(ACL_ASTREAM *astream acl_unused, void *ctx,
 	/* 是否检查 DNS 源/目的网络, 以保证安全性 */
 
 	if ((dns->flag & ACL_DNS_FLAG_CHECK_DNS_NET)) {
-		struct in_addr in;
-		ACL_DNS_ADDR *addr;
-		unsigned short i;
-
-		/* 获得本数据包对应的 DNS 地址索引 */
-		i = (res->id + 1) % dns->dns_list->count;
-		addr = acl_array_index(dns->dns_list, i);
-		if (addr == NULL)
-			acl_msg_fatal("%s(%d): addr null for %d",
-				myname, __LINE__, i);
-
-		in.s_addr = dns->addr_from.addr.in.sin_addr.s_addr;
-		acl_mask_addr((unsigned char*) &in.s_addr,
-			sizeof(in.s_addr), addr->mask_length);
-		if (in.s_addr != addr->in.s_addr) {
-			char  from[64], to[64];
-
-			inet_ntop(AF_INET, &dns->addr_from.addr.in.sin_addr,
-				from, sizeof(from));
-			inet_ntop(AF_INET, &addr->addr.in.sin_addr,
-				to, sizeof(to));
-			acl_msg_warn("%s(%d): from(%s) != to(%s)",
-				myname, __LINE__, from, to);
+		if (dns_safe_net_check(dns) < 0) {
 			rfc1035MessageDestroy(res);
 			return 0;
 		}
 	}
 
-	acl_lowercase(res->query->name);
-	snprintf(key, sizeof(key), "%s:%d", res->query->name, res->id);
-	handle = acl_htable_find(dns->lookup_table, key);
-	if (handle != NULL) {
-		int ttl_min;
-		void (*callback)(ACL_DNS_DB*, void*, int) = handle->callback;
-		void *arg = handle->ctx;
-		ACL_DNS_DB *dns_db = build_dns_db(res, ret,
-				(unsigned int*) &ttl_min);
-
-		/* 取消定时器 */
-		acl_aio_cancel_timer(dns->aio, dns->lookup_timeout, handle);
-		/* 释放该查询对象 */
-		acl_htable_delete(dns->lookup_table, handle->key, NULL);
-		acl_myfree(handle);
-
-		/* 回调函数用户的回调函数 */
-		callback(dns_db, arg, res->rcode);
-
-		/* 如果缓存机制允许则缓存该查询结果 */
-		if (dns->dns_cache == NULL) {
-			/* 释放结果对象 */
-			acl_netdb_free(dns_db);
-		} else if (ttl_min <= 0 || acl_cache2_enter(dns->dns_cache,
-			res->query->name, dns_db, ttl_min) == NULL) {
-
-			acl_netdb_free(dns_db);
-		}
-	}
-
+	dns_lookup_ok(dns, res, ret);
 	rfc1035MessageDestroy(res);
 	return 0;
 }
 
 /* 数据流出错时的回调函数 */
 
-static int dns_lookup_error(ACL_ASTREAM *server acl_unused, void *ctx acl_unused)
+static int dns_lookup_close(ACL_ASTREAM *server acl_unused, void *ctx acl_unused)
 {
-	const char *myname = "dns_lookup_error";
+	const char *myname = "dns_lookup_close";
 #if 0
 	ACL_DNS *dns = (ACL_DNS*) ctx;
 
@@ -309,67 +347,54 @@ static int dns_lookup_error(ACL_ASTREAM *server acl_unused, void *ctx acl_unused
 	/* 异步读DNS服务器响应数据 */
 	acl_aio_read(dns->astream);
 #else
-	acl_msg_warn("%s(%d): dns_lookup error %s",
+	acl_msg_info("%s(%d): dns_lookup stream closed(%s)",
 		myname, __LINE__, acl_last_serror());
 #endif
-	return (-1);
+	return -1;
 }
 
 /* 创建DNS查询的异步流 */
 
-static void dns_stream_open(ACL_DNS *dns)
+static int dns_stream_open(ACL_DNS *dns)
 {
-	const char *myname = "dns_stream_open";
-	ACL_SOCKET fd = socket(PF_INET, SOCK_DGRAM, 0);
-	ACL_VSTREAM *vstream;
+	/* ndk9 居然要求 acl_vstream_bind 前加返回类型？*/
+	ACL_VSTREAM *stream = (ACL_VSTREAM*) acl_vstream_bind("0.0.0.0:0", 0, 0);
 
-	if (fd == ACL_SOCKET_INVALID)
-		acl_msg_fatal("%s: socket create error", myname);
+	if (stream == NULL) {
+		acl_msg_error("%s(%d), %s: acl_vstream_bind error=%s",
+			__FILE__, __LINE__, __FUNCTION__, acl_last_serror());
+		return -1;
+	}
 
-	/* 创建 ACL_VSTREAM 流并设置读写接口 */
-    
-	vstream = acl_vstream_fdopen(fd, O_RDWR, 1024, 0, ACL_VSTREAM_TYPE_SOCK);
-	acl_vstream_ctl(vstream,
+	/* 创建异步流 */
+	dns->astream = acl_aio_open(dns->aio, stream);
+	acl_vstream_ctl(stream,
 		ACL_VSTREAM_CTL_READ_FN, dns_read,
 		ACL_VSTREAM_CTL_WRITE_FN, dns_write,
 		ACL_VSTREAM_CTL_CONTEXT, dns,
 		ACL_VSTREAM_CTL_END);
 
-	/* 创建异步流 */
-	dns->astream = acl_aio_open(dns->aio, vstream);
-
-	/* 设置查询套接口可读时的回调函数 */
+	/* 设置查询套接口可读、关闭时的回调函数 */
 	acl_aio_add_read_hook(dns->astream, dns_lookup_callback, dns);
-	acl_aio_add_close_hook(dns->astream, dns_lookup_error, dns);
+	acl_aio_add_close_hook(dns->astream, dns_lookup_close, dns);
+
 	/* 设置该异步流为持续读状态 */
 	dns->astream->keep_read = 1;
+	return 0;
 }
 
-static int dns_lookup_send(ACL_DNS *dns, ACL_DNS_REQ *handle, const char *domain)
+static void dns_lookup_send(ACL_DNS *dns, const char *domain, unsigned short qid)
 {
-	const char *myname = "dns_lookup_send";
-	char  buf[1024];
-	int   ret;
+	char   buf[1024];
+	size_t ret;
 
 	memset(buf, 0, sizeof(buf));
-	/* 创建DNS查询数据包 */
-	ret = (int) rfc1035BuildAQuery(domain, buf, sizeof(buf), dns->qid, NULL);
-	if (ret < 0) {
-		acl_msg_error("%s(%d): rfc1035BuildAQuery error for(%s)",
-			myname, __LINE__, domain);
-		return (-1);
-	}
 
-	/* 增加ID号 */
-	dns->qid++;
+	/* 创建DNS查询数据包 */
+	ret = rfc1035BuildAQuery(domain, buf, sizeof(buf), qid, NULL);
 
 	/* 发送请求DNS包 */
-	acl_aio_writen(dns->astream, buf, ret);
-
-	/* 设置定时器 */
-	acl_aio_request_timer(dns->aio, dns->lookup_timeout,
-		handle, dns->timeout * 1000000, 0);
-	return (0);
+	acl_aio_writen(dns->astream, buf, (int) ret);
 }
 
 /* 查询超时的回调函数 */
@@ -377,66 +402,86 @@ static int dns_lookup_send(ACL_DNS *dns, ACL_DNS_REQ *handle, const char *domain
 static void dns_lookup_timeout(int event_type, ACL_EVENT *event acl_unused,
 	void *context)
 {
-	const char *myname = "dns_lookup_timeout";
-	ACL_DNS_REQ *handle = (ACL_DNS_REQ*) context;
-	ACL_DNS *dns = handle->dns;
-	void (*callback)(ACL_DNS_DB*, void*, int) = handle->callback;
-	void *arg = handle->ctx;
+	ACL_DNS_REQ *req = (ACL_DNS_REQ*) context;
+	ACL_DNS *dns = req->dns;
 
 	if (event_type != ACL_EVENT_TIME) {
 		acl_msg_warn("%s(%d): invalid event_type(%d)",
-			myname, __LINE__, event_type);
+			__FUNCTION__, __LINE__, event_type);
 	}
 
-	if (++handle->nretry <= dns->retry_limit) {
+	if (++req->nretry <= dns->retry_limit) {
 		char  domain[RFC1035_MAXHOSTNAMESZ + 16], *ptr;
+		int   i;
 
-		ACL_SAFE_STRNCPY(domain, handle->key, sizeof(domain));
+		SAFE_COPY(domain, req->key, sizeof(domain));
 		ptr = strchr(domain, ':');
-		if (ptr)
+		if (ptr) {
 			*ptr = 0;
-		if (dns_lookup_send(dns, handle, domain) == 0)
-			return;
+		}
+
+		for (i = 0; i < dns->dns_list->count; i++) {
+			dns_lookup_send(dns, domain, req->qid);
+		}
+
+		/* 设置定时器 */
+		acl_aio_request_timer(dns->aio, dns->lookup_timeout,
+			req, dns->timeout * 1000000, 0);
+		return;
 	}
 
-	/* 释放该查询对象 */
-	acl_htable_delete(handle->dns->lookup_table, handle->key, NULL);
-	acl_myfree(handle);
+	/* 从查询列表删除该查询对象 */
+	acl_htable_delete(req->dns->lookup_table, req->key, NULL);
 
 	/* 回调函数用户的回调函数 */
-	callback(NULL, arg, ACL_DNS_ERR_TIMEOUT);
+	req->callback(NULL, req->ctx, ACL_DNS_ERR_TIMEOUT);
+
+	/* 释放该查询对象 */
+	acl_myfree(req);
 }
 
-void acl_dns_init(ACL_DNS *dns, ACL_AIO *aio, int timeout)
+int acl_dns_init(ACL_DNS *dns, ACL_AIO *aio, int timeout)
 {
-	dns->flag &= ~ACL_DNS_FLAG_ALLOC;  /* 默认为栈空间 */
-	dns->aio = aio;
-	dns->timeout = timeout > 0 ? timeout : 5;
-	dns->qid = 0;
-	dns->dns_idx = 0;
+	dns->flag       &= ~ACL_DNS_FLAG_ALLOC;  /* 默认为栈空间 */
+	dns->aio         = aio;
+	dns->timeout     = timeout > 0 ? timeout : 5;
+	dns->qid         = 0;
+	dns->dns_idx     = 0;
 	dns->retry_limit = 0;
 
 	/* 创建DNS服务器地址数组 */
-	dns->dns_list = acl_array_create(10);
-	/* 创建查询对象表 */
-	dns->lookup_table = acl_htable_create(1024, 0);
+	dns->dns_list       = acl_array_create(10);
 
+	/* 创建查询对象表 */
+	dns->lookup_table   = acl_htable_create(1024, 0);
+
+	/* 设置 DNS 查询超时的回调函数*/
 	dns->lookup_timeout = dns_lookup_timeout;
 
 	/* 打开异步读取DNS服务器响应的数据流 */
-	dns_stream_open(dns);
+	if (dns_stream_open(dns) == -1) {
+		acl_msg_error("%s(%d), %s: dns_stream_open error=%s",
+			__FILE__, __LINE__, __FUNCTION__, acl_last_serror());
+		return -1;
+	}
 
 	/* 开始异步读查询结果 */
 	acl_aio_read(dns->astream);
+	return 0;
 }
 
 ACL_DNS *acl_dns_create(ACL_AIO *aio, int timeout)
 {
 	ACL_DNS *dns = (ACL_DNS*) acl_mycalloc(1, sizeof(ACL_DNS));
 
-	acl_dns_init(dns, aio, timeout);
+	if (acl_dns_init(dns, aio, timeout) == -1) {
+		acl_myfree(dns);
+		acl_msg_error("%s(%d), %s: acl_dns_init error",
+			__FILE__, __LINE__, __FUNCTION__);
+		return NULL;
+	}
 	dns->flag |= ACL_DNS_FLAG_ALLOC;  /* 设置为堆分配的变量 */
-	return (dns);
+	return dns;
 }
 
 void acl_dns_close(ACL_DNS *dns)
@@ -444,8 +489,8 @@ void acl_dns_close(ACL_DNS *dns)
 	ACL_ITER iter;
 
 	acl_foreach(iter, dns->lookup_table) {
-		ACL_DNS_REQ *handle = (ACL_DNS_REQ*) iter.data;
-		acl_myfree(handle);
+		ACL_DNS_REQ *req = (ACL_DNS_REQ*) iter.data;
+		acl_myfree(req);
 	}
 
 	acl_htable_free(dns->lookup_table, NULL);
@@ -455,24 +500,26 @@ void acl_dns_close(ACL_DNS *dns)
 		dns->dns_cache = NULL;
 	}
 	acl_aio_iocp_close(dns->astream);
-	dns->aio = NULL;
+	dns->aio     = NULL;
 	dns->astream = NULL;
 	acl_array_destroy(dns->dns_list, acl_myfree_fn);
 
 	if (dns->groups) {
 		acl_foreach(iter, dns->groups) {
 			ACL_DOMAIN_GROUP *tmp = (ACL_DOMAIN_GROUP*) iter.data;
-			if (tmp->excepts)
+			if (tmp->excepts) {
 				acl_argv_free(tmp->excepts);
+			}
 			acl_myfree(tmp);
 		}
 		acl_array_destroy(dns->groups, NULL);
 	}
 
-	if ((dns->flag & ACL_DNS_FLAG_ALLOC))
+	if ((dns->flag & ACL_DNS_FLAG_ALLOC)) {
 		acl_myfree(dns);
-	else
+	} else {
 		dns->flag = 0;
+	}
 }
 
 void acl_dns_check_dns_ip(ACL_DNS *dns)
@@ -500,11 +547,9 @@ static void cache_free_fn(const ACL_CACHE2_INFO *info acl_unused, void *arg)
 
 void acl_dns_open_cache(ACL_DNS *dns, int limit)
 {
-	if (dns->dns_cache)
-		return;
-	if (limit <= 0)
-		return;
-	dns->dns_cache = acl_cache2_create(limit, cache_free_fn);
+	if (dns->dns_cache == NULL && limit > 0) {
+		dns->dns_cache = acl_cache2_create(limit, cache_free_fn);
+	}
 }
 
 void acl_dns_add_dns(ACL_DNS *dns, const char *dns_ip,
@@ -523,7 +568,7 @@ void acl_dns_add_dns(ACL_DNS *dns, const char *dns_ip,
 
 	/* 设置DNS服务器地址 */
 
-	ACL_SAFE_STRNCPY(addr->ip, dns_ip, sizeof(addr->ip));
+	SAFE_COPY(addr->ip, dns_ip, sizeof(addr->ip));
 	addr->port = dns_port;
 
 	memset(&addr->addr, 0, sizeof(addr->addr));
@@ -533,12 +578,46 @@ void acl_dns_add_dns(ACL_DNS *dns, const char *dns_ip,
 	addr->addr_len                = sizeof(struct sockaddr_in);
 
 	addr->in.s_addr               = addr->addr.in.sin_addr.s_addr;
-	acl_mask_addr((unsigned char*) &addr->addr.in.sin_addr.s_addr,
-		sizeof(addr->addr.in.sin_addr.s_addr), mask_length);
+	acl_mask_addr((unsigned char*) &addr->in.s_addr,
+		sizeof(addr->in.s_addr), mask_length);
 
 	/* 将该DNS地址添加进数组中 */
-
 	(void) acl_array_append(dns->dns_list, addr);
+}
+
+void acl_dns_del_dns(ACL_DNS *dns, const char *ip, unsigned short port)
+{
+	int size = acl_array_size(dns->dns_list), i;
+
+	for (i = 0; i < size; i++) {
+		ACL_DNS_ADDR *addr = (ACL_DNS_ADDR*)
+			acl_array_index(dns->dns_list, i);
+		if (strcmp(addr->ip, ip) && addr->port == port) {
+			acl_array_delete(dns->dns_list, i, NULL);
+			acl_myfree(addr);
+			break;
+		}
+	}
+}
+
+void acl_dns_clear_dns(ACL_DNS *dns)
+{
+	acl_array_clean(dns->dns_list, acl_myfree_fn);
+}
+
+ACL_ARRAY *acl_dns_list(ACL_DNS *dns)
+{
+	return dns->dns_list;
+}
+
+size_t acl_dns_size(ACL_DNS *dns)
+{
+	return (size_t) acl_array_size(dns->dns_list);
+}
+
+int acl_dns_empty(ACL_DNS *dns)
+{
+	return acl_dns_size(dns) == 0;
 }
 
 void acl_dns_add_host(ACL_DNS *dns, const char *domain, const char *ip_list)
@@ -559,8 +638,8 @@ void acl_dns_add_host(ACL_DNS *dns, const char *domain, const char *ip_list)
 		char *ip = (char*) iter.data;
 		ACL_HOSTNAME *phost = acl_mycalloc(1, sizeof(ACL_HOSTNAME));
 
-		ACL_SAFE_STRNCPY(phost->ip, ip, sizeof(phost->ip));
-		phost->saddr.sa.sa_family = AF_INET;
+		SAFE_COPY(phost->ip, ip, sizeof(phost->ip));
+		phost->saddr.sa.sa_family       = AF_INET;
 		phost->saddr.in.sin_addr.s_addr = inet_addr(ip);
 		(void) acl_array_append(dns_db->h_db, phost);
 	}
@@ -579,8 +658,9 @@ void acl_dns_add_group(ACL_DNS *dns, const char *group, const char *refer,
 	ACL_DOMAIN_GROUP *dmgrp;
 	ACL_ITER iter;
 
-	if (dns->groups == NULL)
+	if (dns->groups == NULL) {
 		dns->groups = acl_array_create(10);
+	}
 
 	acl_foreach(iter, dns->groups) {
 		dmgrp = (ACL_DOMAIN_GROUP*) iter.data;
@@ -593,43 +673,50 @@ void acl_dns_add_group(ACL_DNS *dns, const char *group, const char *refer,
 
 	dmgrp = (ACL_DOMAIN_GROUP*) acl_mycalloc(1, sizeof(ACL_DOMAIN_GROUP));
 
-	ACL_SAFE_STRNCPY(dmgrp->group, group, sizeof(dmgrp->group));
+	SAFE_COPY(dmgrp->group, group, sizeof(dmgrp->group));
 	acl_lowercase(dmgrp->group);
 	dmgrp->group_len = (int) strlen(dmgrp->group);
 
-	if (refer == NULL || *refer == 0)
-		ACL_SAFE_STRNCPY(dmgrp->domain, dmgrp->group, sizeof(dmgrp->domain));
-	else {
-		ACL_SAFE_STRNCPY(dmgrp->domain, refer, sizeof(dmgrp->domain));
+	if (refer == NULL || *refer == 0) {
+		SAFE_COPY(dmgrp->domain, dmgrp->group, sizeof(dmgrp->domain));
+	} else {
+		SAFE_COPY(dmgrp->domain, refer, sizeof(dmgrp->domain));
 		acl_lowercase(dmgrp->domain);
 	}
-	if (excepts)
+	if (excepts) {
 		dmgrp->excepts = acl_argv_split(excepts, ",; \t");
-	else
+	} else {
 		dmgrp->excepts = NULL;
+	}
 
 	acl_array_append(dns->groups, dmgrp);
 
-	if (ip_list && *ip_list)
+	if (ip_list && *ip_list) {
 		acl_dns_add_host(dns, dmgrp->domain, ip_list);
+	}
 }
 
 ACL_DNS_REQ *acl_dns_lookup(ACL_DNS *dns, const char *domain_in,
-	void (*callback)(ACL_DNS_DB *, void *, int), void *ctx)
+	void (*callback)(ACL_DNS_DB*, void*, int), void *ctx)
 {
 	char  key[RFC1035_MAXHOSTNAMESZ + 16], domain[RFC1035_MAXHOSTNAMESZ];
-	ACL_DNS_REQ *handle;
+	ACL_DNS_REQ *req;
+	int i;
 
 	/* 先检查是否匹配域名组 */
 	if (dns->groups) {
 		ACL_DOMAIN_GROUP *dmgrp = NULL;
-		ACL_ITER  iter;
+		ACL_ITER iter;
 		acl_foreach(iter, dns->groups) {
-			ACL_ITER  iter2;
+			ACL_ITER iter2;
 			ACL_DOMAIN_GROUP *tmp = (ACL_DOMAIN_GROUP*) iter.data;
+
+#define NEQ acl_strrncasecmp
+
 			/* 先找到域名组对象 */
-			if (acl_strrncasecmp(tmp->group, domain_in, tmp->group_len))
+			if (NEQ(tmp->group, domain_in, tmp->group_len)) {
 				continue;
+			}
 			/* 检查该域名是否是域名组的例外域名 */
 			if (!tmp->excepts) {
 				dmgrp = tmp;
@@ -637,18 +724,21 @@ ACL_DNS_REQ *acl_dns_lookup(ACL_DNS *dns, const char *domain_in,
 			}
 			acl_foreach(iter2, tmp->excepts) {
 				char *except = (char*) iter2.data;
-				if (strcasecmp(except, domain_in) == 0)
+				if (strcasecmp(except, domain_in) == 0) {
 					goto END_FOREACH_TAG;
+				}
 			}
 		}
 
 END_FOREACH_TAG:
-		if (dmgrp)
-			ACL_SAFE_STRNCPY(domain, dmgrp->domain, sizeof(domain));
-		else
-			ACL_SAFE_STRNCPY(domain, domain_in, sizeof(domain));
-	} else
-		ACL_SAFE_STRNCPY(domain, domain_in, sizeof(domain));
+		if (dmgrp) {
+			SAFE_COPY(domain, dmgrp->domain, sizeof(domain));
+		} else {
+			SAFE_COPY(domain, domain_in, sizeof(domain));
+		}
+	} else {
+		SAFE_COPY(domain, domain_in, sizeof(domain));
+	}
 
 	acl_lowercase(domain);
 
@@ -664,44 +754,48 @@ END_FOREACH_TAG:
 
 	snprintf(key, sizeof(key), "%s:%d", domain, dns->qid);
 	acl_lowercase(key);
-	handle = (ACL_DNS_REQ*) acl_htable_find(dns->lookup_table, key);
+	req = (ACL_DNS_REQ*) acl_htable_find(dns->lookup_table, key);
+
 	/* XXX: 不应存在相同的键存在, 因为该键是由域名及自动ID组成 */
-	if (handle != NULL) {
-		acl_msg_warn("%s(%d): key(%s) exist", __FUNCTION__, __LINE__, key);
+	if (req != NULL) {
+		acl_msg_warn("%s(%d): key(%s) exist",
+			__FUNCTION__, __LINE__, key);
 		callback(NULL, ctx, ACL_DNS_ERR_EXIST);
 		return NULL;
 	}
 
 	/* 分配新的查询对象 */
-	handle = (ACL_DNS_REQ*) acl_mycalloc(1, sizeof(ACL_DNS_REQ));
-	handle->dns = dns;
-	handle->callback = callback;
-	handle->ctx = ctx;
-	handle->qid = dns->qid;
-	ACL_SAFE_STRNCPY(handle->key, key, sizeof(handle->key));
+	req           = (ACL_DNS_REQ*) acl_mycalloc(1, sizeof(ACL_DNS_REQ));
+	req->dns      = dns;
+	req->callback = callback;
+	req->ctx      = ctx;
+	req->qid      = dns->qid++;
+	SAFE_COPY(req->key, key, sizeof(req->key));
 
 	/* 添加进查询对象表中 */
-	if (acl_htable_enter(dns->lookup_table, key, handle) == NULL)
+	if (acl_htable_enter(dns->lookup_table, key, req) == NULL) {
 		acl_msg_fatal("%s(%d): enter htable error(%s)",
 			__FUNCTION__, __LINE__, acl_last_serror());
-
-	if (dns_lookup_send(dns, handle, domain) < 0) {
-		acl_htable_delete(dns->lookup_table, key, NULL);
-		acl_myfree(handle);
-		callback(NULL, ctx, ACL_DNS_ERR_BUILD_REQ);
-		return NULL;
 	}
-	return handle;
+
+	for (i = 0; i < dns->dns_list->count; i++) {
+		dns_lookup_send(dns, domain, req->qid);
+	}
+
+	/* 设置定时器 */
+	acl_aio_request_timer(dns->aio, dns->lookup_timeout,
+		req, dns->timeout * 1000000, 0);
+	return req;
 }
 
-void acl_dns_cancel(ACL_DNS_REQ *handle)
+void acl_dns_cancel(ACL_DNS_REQ *req)
 {
-	if (handle == NULL || handle->dns == NULL) {
+	if (req == NULL || req->dns == NULL) {
 		acl_msg_error("%s(%d): input error", __FUNCTION__, __LINE__);
 		return;
 	}
-	acl_htable_delete(handle->dns->lookup_table, handle->key, NULL);
-	acl_myfree(handle);
+	acl_htable_delete(req->dns->lookup_table, req->key, NULL);
+	acl_myfree(req);
 }
 
 const char *acl_dns_serror(int errnum)
@@ -738,7 +832,7 @@ const char *acl_dns_serror(int errnum)
 		{ ACL_DNS_ERR_BUILD_REQ, "Can't build query packet" },
 		{ 0, 0 }
 	};
-	const char *unknown = "Unknown Error";
+	static const char *unknown = "Unknown Error";
 	size_t i;
 
 	for (i = 0; errmsg[i].msg != NULL; ++i) {

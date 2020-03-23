@@ -2,13 +2,15 @@
 #include "../acl_cpp_define.hpp"
 #include "../connpool/connect_manager.hpp"
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
 /**
  * memcache 客户端请求连接池管理类
  */
-class ACL_CPP_API memcache_manager : public acl::connect_manager
+class ACL_CPP_API memcache_manager : public connect_manager
 {
 public:
 	memcache_manager();
@@ -25,3 +27,5 @@ protected:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

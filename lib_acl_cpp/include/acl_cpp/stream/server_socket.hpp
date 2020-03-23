@@ -1,6 +1,7 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #if defined(_WIN32) || defined(_WIN64)
 #include <WinSock2.h>
 #endif
@@ -19,15 +20,17 @@ enum {
 /**
  * 服务端监听套接口类，接收客户端连接，并创建客户端流连接对象
  */
-class ACL_CPP_API server_socket
+class ACL_CPP_API server_socket : public noncopyable
 {
 public:
+#if 0
 	/**
 	 * 构造函数，调用本构造函数后需调用类方法 open 来监听指定服务地址
 	 * @param backlog {int} 监听套接口队列长度
 	 * @param block {bool} 是阻塞模式还是非阻塞模式
 	 */
 	server_socket(int backlog, bool block);
+#endif
 
 	/**
 	 * 构造函数
@@ -60,8 +63,9 @@ public:
 	/**
 	 * 开始监听给定服务端地址
 	 * @param addr {const char*} 服务器监听地址，格式为：
-	 *  ip:port；在 unix 环境下，还可以是域套接口，格式为：
-	 *   /path/xxx
+	 *  ip:port；在 unix 环境下，还可以是域套接口，格式为：/path/xxx，在
+	 *  Linux 平台下，如果域套接口地址为：@xxx 格式，即第一个字母为 @ 则
+	 *  内部自动启用 Linux 下的抽象域套接字方式（abstract unix socket）
 	 * @return {bool} 监听是否成功
 	 */
 	bool open(const char* addr);

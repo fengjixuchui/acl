@@ -1,6 +1,9 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <vector>
+
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
 
 namespace acl
 {
@@ -25,7 +28,7 @@ class redis_client;
  * redis_result ¿‡∂‘œÛ°£
  * the redis result for redis-server's reply
  */
-class ACL_CPP_API redis_result
+class ACL_CPP_API redis_result : public noncopyable
 {
 public:
 	redis_result(dbuf_pool* dbuf);
@@ -221,3 +224,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

@@ -6,6 +6,8 @@
 #include "acl_cpp/redis/redis_stream.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 #define INT_LEN		11
 #define LONG_LEN	21
 
@@ -139,7 +141,7 @@ bool redis_stream::xadd_with_maxlen(const char* key, size_t maxlen,
 	i++;
 
 	char buf[LONG_LEN];
-	safe_snprintf(buf, sizeof(buf), "%ld", maxlen);
+	safe_snprintf(buf, sizeof(buf), "%ld", (long) maxlen);
 	argv_[i] = buf;
 	argv_lens_[i] = strlen(buf);
 	i++;
@@ -183,7 +185,7 @@ int redis_stream::xlen(const char* key)
 //////////////////////////////////////////////////////////////////////////////
 
 void redis_stream::build(const std::map<string, string>& streams, size_t i,
-	size_t count, size_t block, bool noack /* = false */)
+	size_t count, ssize_t block, bool noack /* = false */)
 {
 	char count_s[LONG_LEN];
 	if (count > 0) {
@@ -199,13 +201,12 @@ void redis_stream::build(const std::map<string, string>& streams, size_t i,
 	}
 
 	char block_s[LONG_LEN];
-	if (block > 0) {
+	if (block >= 0) {
 		argv_[i] = "BLOCK";
 		argv_lens_[i] = sizeof("BLOCK") - 1;
 		i++;
 
-		safe_snprintf(block_s, sizeof(block_s), "%lu",
-			(unsigned long) block);
+		safe_snprintf(block_s, sizeof(block_s), "%ld", (long) block);
 		argv_[i] = block_s;
 		argv_lens_[i] = strlen(block_s);
 		i++;
@@ -221,23 +222,24 @@ void redis_stream::build(const std::map<string, string>& streams, size_t i,
 	argv_lens_[i] = sizeof("STREAMS") - 1;
 	i++;
 
+	size_t streams_n = streams.size();
 	for (std::map<string, string>::const_iterator cit = streams.begin();
 		cit != streams.end(); ++cit) {
 
 		argv_[i] = cit->first.c_str();
 		argv_lens_[i] = cit->first.size();
-		i++;
 
-		argv_[i] = cit->second.c_str();
-		argv_lens_[i] = cit->second.size();
+		argv_[i+streams_n] = cit->second.c_str();
+		argv_lens_[i+streams_n] = cit->second.size();
 		i++;
 	}
+        i+=streams_n;
 
 	build_request(i, argv_, argv_lens_);
 }
 
 void redis_stream::xread_build(const std::map<string, string>& streams,
-	size_t count, size_t block)
+	size_t count, ssize_t block)
 {
 	argc_ = 6 + streams.size() * 2;
 	argv_space(argc_);
@@ -251,7 +253,7 @@ void redis_stream::xread_build(const std::map<string, string>& streams,
 }
 
 void redis_stream::xreadgroup_build(const char* group, const char* consumer,
-	const std::map<string, string>& streams, size_t count, size_t block,
+	const std::map<string, string>& streams, size_t count, ssize_t block,
 	bool noack)
 {
 	argc_ = 10 + streams.size() * 2;
@@ -279,7 +281,7 @@ void redis_stream::xreadgroup_build(const char* group, const char* consumer,
 
 bool redis_stream::xread(redis_stream_messages& messages,
 	const std::map<string, string>& streams,
-	size_t count /* = 1000 */, size_t block /* = 0 */)
+	size_t count /* = 1000 */, ssize_t block /* = 0 */)
 {
 	if (streams.size() == 1) {
 		std::map<string, string>::const_iterator cit = streams.begin();
@@ -292,7 +294,7 @@ bool redis_stream::xread(redis_stream_messages& messages,
 bool redis_stream::xreadgroup(redis_stream_messages& messages,
 	const char* group, const char* consumer,
 	const std::map<string, string>& streams, size_t count /* = 1000 */,
-	size_t block /* = 0 */, bool noack /* = false */)
+	ssize_t block /* = 0 */, bool noack /* = false */)
 {
 	if (streams.size() == 1) {
 		std::map<string, string>::const_iterator cit = streams.begin();
@@ -306,7 +308,7 @@ bool redis_stream::xreadgroup(redis_stream_messages& messages,
 bool redis_stream::xreadgroup_with_noack(redis_stream_messages& messages,
 	const char* group, const char* consumer,
 	const std::map<string, string>& streams, size_t count /* = 0 */,
-	size_t block /* = 0 */)
+	ssize_t block /* = 0 */)
 {
 	return xreadgroup(messages, group, consumer, streams, count, block, true);
 }
@@ -1695,3 +1697,5 @@ bool redis_stream::xinfo_stream(const char* key, redis_stream_info& info)
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

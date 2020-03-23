@@ -4,6 +4,8 @@
 #include "../stdlib/string.hpp"
 #include "../connpool/connect_manager.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl {
 
 class pgsql_conf;
@@ -37,3 +39,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

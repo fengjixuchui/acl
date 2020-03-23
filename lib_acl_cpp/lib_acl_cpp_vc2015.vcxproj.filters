@@ -76,6 +76,9 @@
     <ClCompile Include="src\http\http_service.cpp">
       <Filter>Source Files\http</Filter>
     </ClCompile>
+    <ClCompile Include="src\http\http_aclient.cpp">
+      <Filter>Source Files\http</Filter>
+    </ClCompile>
     <ClCompile Include="src\http\http_client.cpp">
       <Filter>Source Files\http</Filter>
     </ClCompile>
@@ -200,6 +203,9 @@
       <Filter>Source Files\stream</Filter>
     </ClCompile>
     <ClCompile Include="src\stream\socket_stream.cpp">
+      <Filter>Source Files\stream</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stream\sslbase_io.cpp">
       <Filter>Source Files\stream</Filter>
     </ClCompile>
     <ClCompile Include="src\mime\internal\header_opts.cpp">
@@ -432,6 +438,12 @@
     </ClCompile>
     <ClCompile Include="src\stdlib\scan_dir.cpp">
       <Filter>Source Files\stdlib</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stream\mbedtls_io.cpp">
+      <Filter>Source Files\stream</Filter>
+    </ClCompile>
+    <ClCompile Include="src\stream\mbedtls_conf.cpp">
+      <Filter>Source Files\stream</Filter>
     </ClCompile>
     <ClCompile Include="src\stream\polarssl_io.cpp">
       <Filter>Source Files\stream</Filter>
@@ -681,6 +693,9 @@
     <ClInclude Include="include\acl_cpp\http\HttpSession.hpp">
       <Filter>Header Files\http</Filter>
     </ClInclude>
+    <ClInclude Include="include\acl_cpp\http\http_aclient.hpp">
+      <Filter>Header Files\http</Filter>
+    </ClInclude>
     <ClInclude Include="include\acl_cpp\http\http_client.hpp">
       <Filter>Header Files\http</Filter>
     </ClInclude>
@@ -921,6 +936,12 @@
     <ClInclude Include="include\acl_cpp\stream\socket_stream.hpp">
       <Filter>Header Files\stream</Filter>
     </ClInclude>
+    <ClInclude Include="include\acl_cpp\stream\sslbase_conf.hpp">
+      <Filter>Header Files\stream</Filter>
+    </ClInclude>
+    <ClInclude Include="include\acl_cpp\stream\sslbase_io.hpp">
+      <Filter>Header Files\stream</Filter>
+    </ClInclude>
     <ClInclude Include="include\acl_cpp\lib_acl.hpp">
       <Filter>Header Files</Filter>
     </ClInclude>
@@ -1055,6 +1076,12 @@
     </ClInclude>
     <ClInclude Include="include\acl_cpp\stdlib\scan_dir.hpp">
       <Filter>Header Files\stdlib</Filter>
+    </ClInclude>
+    <ClInclude Include="include\acl_cpp\stream\mbedtls_io.hpp">
+      <Filter>Header Files\stream</Filter>
+    </ClInclude>
+    <ClInclude Include="include\acl_cpp\stream\mbedtls_conf.hpp">
+      <Filter>Header Files\stream</Filter>
     </ClInclude>
     <ClInclude Include="include\acl_cpp\stream\polarssl_io.hpp">
       <Filter>Header Files\stream</Filter>

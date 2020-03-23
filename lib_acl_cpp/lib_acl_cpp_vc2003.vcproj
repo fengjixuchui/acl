@@ -318,6 +318,12 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 					RelativePath=".\src\stream\istream.cpp">
 				</File>
 				<File
+					RelativePath=".\src\stream\mbedtls_conf.cpp">
+				</File>
+				<File
+					RelativePath=".\src\stream\mbedtls_io.cpp">
+				</File>
+				<File
 					RelativePath=".\src\stream\ofstream.cpp">
 				</File>
 				<File
@@ -334,6 +340,9 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 				</File>
 				<File
 					RelativePath=".\src\stream\socket_stream.cpp">
+				</File>
+				<File
+					RelativePath=".\src\stream\sslbase_io.cpp">
 				</File>
 				<File
 					RelativePath=".\src\stream\stdin_stream.cpp">
@@ -642,6 +651,9 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 			<Filter
 				Name="http"
 				Filter="">
+				<File
+					RelativePath=".\src\http\http_aclient.cpp">
+				</File>
 				<File
 					RelativePath=".\src\http\http_client.cpp">
 				</File>
@@ -1069,6 +1081,12 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 					RelativePath=".\include\acl_cpp\stream\istream.hpp">
 				</File>
 				<File
+					RelativePath=".\include\acl_cpp\stream\mbedtls_conf.hpp">
+				</File>
+				<File
+					RelativePath=".\include\acl_cpp\stream\mbedtls_io.hpp">
+				</File>
+				<File
 					RelativePath=".\include\acl_cpp\stream\ofstream.hpp">
 				</File>
 				<File
@@ -1085,6 +1103,12 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 				</File>
 				<File
 					RelativePath=".\include\acl_cpp\stream\socket_stream.hpp">
+				</File>
+				<File
+					RelativePath=".\include\acl_cpp\stream\sslbase_conf.hpp">
+				</File>
+				<File
+					RelativePath=".\include\acl_cpp\stream\sslbase_io.hpp">
 				</File>
 				<File
 					RelativePath=".\include\acl_cpp\stream\stdin_stream.hpp">
@@ -1304,6 +1328,9 @@ copy $(TargetName).pdb ..\dist\lib\win32\$(TargetName).pdb /Y
 			<Filter
 				Name="http"
 				Filter="">
+				<File
+					RelativePath=".\include\acl_cpp\http\http_aclient.hpp">
+				</File>
 				<File
 					RelativePath=".\include\acl_cpp\http\http_client.hpp">
 				</File>

@@ -10,6 +10,7 @@
 
 #endif
 
+#ifndef ACL_CLIENT_ONLY
 #ifdef ACL_UNIX
 
 #include <sys/socket.h>
@@ -391,8 +392,7 @@ ACL_EVENT *acl_udp_server_event(void)
 		acl_assert(__main_event);
 		return __main_event;
 	} else {
-		UDP_SERVER *server = (UDP_SERVER *)
-			acl_pthread_getspecific(__server_key);
+		UDP_SERVER *server = (UDP_SERVER *) acl_pthread_getspecific(__server_key);
 		acl_assert(server);
 		return server->event;
 	}
@@ -407,8 +407,7 @@ void acl_udp_server_request_timer(ACL_EVENT_NOTIFY_TIME timer_fn,
 
 ACL_VSTREAM **acl_udp_server_streams()
 {
-	UDP_SERVER *server = (UDP_SERVER *)
-		acl_pthread_getspecific(__server_key);
+	UDP_SERVER *server = (UDP_SERVER *) acl_pthread_getspecific(__server_key);
 	acl_assert(server);
 	return server ? server->streams : NULL;
 }
@@ -1246,3 +1245,6 @@ void acl_udp_server_main(int argc, char **argv, ACL_UDP_SERVER_FN service, ...)
 
 	servers_start(__servers, acl_var_udp_threads);
 }
+
+#endif /* ACL_CLIENT_ONLY */
+

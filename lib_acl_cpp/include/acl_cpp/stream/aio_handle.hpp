@@ -1,5 +1,6 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/string.hpp"
 #include "../stdlib/noncopyable.hpp"
 
 struct ACL_AIO;
@@ -50,7 +51,7 @@ public:
 	 */
 	aio_handle(ACL_AIO* handle);
 
-	virtual ~aio_handle();
+	virtual ~aio_handle(void);
 
 	/**
 	 * 针对异步读流，设置是否是连续读，该配置项将会被所有的基于
@@ -64,7 +65,7 @@ public:
 	 * 获得异步引擎句柄是否设置了持续读数据的功能
 	 * @return {bool}
 	 */
-	bool keep_read() const;
+	bool keep_read(void) const;
 
 	/**
 	 * 设置定时器
@@ -129,29 +130,67 @@ public:
 	 * 获得当前处于监控的异步流的数量
 	 * @return {int}
 	 */
-	int length() const;
+	int length(void) const;
 
 	/**
 	 * 检查所有异步流的状态，并触发准备的异步流的处理过程
 	 * @return {bool} 是否应中止异步引擎
 	 */
-	bool check();
+	bool check(void);
 
 	/**
 	 * 获得本次事件循环被触发的事件次数
 	 * @return {int}
 	 */
-	int last_nready() const;
+	int last_nready(void) const;
 
 	/**
 	 * 通知异步流引擎中止
 	 */
-	void stop();
+	void stop(void);
 
 	/**
 	 * 重置异步引擎的内部状态
 	 */
-	void reset();
+	void reset(void);
+
+	/**
+	 * 设置 DNS 服务器地址列表，格式：ip1:port1;ip2:port2...
+	 * @param addrs {const char*} DNS 服务器地址列表，如：8.8.8.8:53;1.1.1.1:53
+	 * @param timeout {int} DNS 查询超时时间（秒）
+	 *  注：set_dns 和 dns_add 执行相同的功能
+	 */
+	void set_dns(const char* addrs, int timeout);
+	void dns_add(const char* addrs, int timeout);
+
+	/**
+	 * 删除指定的 DNS 服务器地址列表，格式：ip1:port1;ip2:port2...
+	 * @param addrs {const char*} DNS 服务器地址列表
+	 */
+	void dns_del(const char* addrs);
+
+	/**
+	 * 清除掉所设置的所有 DNS 服务器列表
+	 */
+	void dns_clear(void);
+
+	/**
+	 * DNS 服务器列表数量
+	 * @return {size_t}
+	 */
+	size_t dns_size(void) const;
+
+	/**
+	 * 判断 DNS 服务器列表是否为空
+	 * @return {bool}
+	 */
+	bool dns_empty(void) const;
+	
+	/**
+	 * 获得 DNS 服务器地址列表
+	 * @param out {std::vector<std::pair<acl::string, unsigned short> >&}
+	 */
+	void dns_list(std::vector<std::pair<string, unsigned short> >& out);
 
 public:
 	/**
@@ -186,22 +225,22 @@ protected:
 	/**
 	 * 异步流个数加 1
 	 */
-	void increase();
+	void increase(void);
 
 	/**
 	 * 当异步流个数加 1 时的回调虚函数
 	 */
-	virtual void on_increase() {}
+	virtual void on_increase(void) {}
 
 	/**
 	 * 异步流个数减 1
 	 */
-	void decrease();
+	void decrease(void);
 
 	/**
 	 * 当异步流个数减 1 时的回调虚函数
 	 */
-	virtual void on_decrease() {}
+	virtual void on_decrease(void) {}
 
 private:
 	ACL_AIO* aio_;

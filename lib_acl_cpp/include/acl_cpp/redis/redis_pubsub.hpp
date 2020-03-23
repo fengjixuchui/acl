@@ -4,6 +4,8 @@
 #include <map>
 #include "redis_command.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -123,11 +125,13 @@ public:
 	 *  store the message posted to the channel
 	 * @param message_type {string*} will store messsage or pmessage
 	 * @param pattern {string*} will store pattern set by psubscribe
-	 * @return {bool} 是否成功，如果返回 false 则表示出错
-	 *  true on success, false on error
+	 * @param timeout {int} 当该值 >= 0 时，表示等待消息超时时间(秒)
+     *  when timeout >= 0, which was used as the waiting time for reading(second)
+	 * @return {bool} 是否成功，如果返回 false 则表示出错或超时
+	 *  true on success, false on error or waiting timeout
 	 */
-	bool get_message(string& channel, string& msg,
-		string* message_type = NULL, string* pattern = NULL);
+	bool get_message(string& channel, string& msg, string* message_type = NULL,
+		string* pattern = NULL, int timeout = -1);
 
 	/**
 	 * 列出当前的活跃频道：活跃频道指的是那些至少有一个订阅者的频道， 订阅模式的
@@ -168,7 +172,7 @@ public:
 	 * @param out {std::map<string, int>&} 存储查询结果，其中 out->first 存放
 	 *  频道名，out->second 在座该频道的订阅者数量
 	 *  store the results
-	 * @param first_pattern {const char*} 作为附加的匹配模式第一个匹配字符串，
+	 * @param first_channel {const char*} 第一个频道
 	 *  该指针可以为 NULL，此时获取指所有的活跃频道；对于变参而言最后一个参数需为 NULL
 	 *  the first pattern in a variable args ending with NULL arg, and
 	 *  the first arg can be NULL.
@@ -202,3 +206,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

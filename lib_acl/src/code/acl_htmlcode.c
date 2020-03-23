@@ -14,6 +14,8 @@
 
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 #include "uni2utf8.h"
 #include "html_charset.h"
 
@@ -41,6 +43,7 @@ int acl_html_encode(const char *in, ACL_VSTRING *out)
 
 static ACL_TOKEN *__decode_token_tree = NULL;
 
+#ifndef HAVE_NO_ATEXIT
 static void html_decode_free(void)
 {
 	if (__decode_token_tree) {
@@ -48,6 +51,7 @@ static void html_decode_free(void)
 		__decode_token_tree = NULL;
 	}
 }
+#endif
 
 static void html_decode_init(void)
 {
@@ -69,8 +73,10 @@ static void html_decode_init(void)
 			ACL_TOKEN_F_STOP, &html_tab[i]);
 	}
 
+#ifndef HAVE_NO_ATEXIT
 	/* 进程退出时调用 html_decode_free 释放内存资源 */
 	atexit(html_decode_free);
+#endif
 }
 
 static acl_pthread_once_t __decode_token_once = ACL_PTHREAD_ONCE_INIT;
@@ -144,3 +150,5 @@ int acl_html_decode(const char *in, ACL_VSTRING *out)
 	ACL_VSTRING_TERMINATE(out);
 	return (n);
 }
+
+#endif /* ACL_CLIENT_ONLY */

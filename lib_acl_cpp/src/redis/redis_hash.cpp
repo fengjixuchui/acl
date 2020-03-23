@@ -6,13 +6,15 @@
 #include "acl_cpp/redis/redis_hash.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
 #define INT64_LEN	21
 #define FLOAT_LEN	32
 
-redis_hash::redis_hash()
+redis_hash::redis_hash(void)
 : redis_command(NULL)
 {
 }
@@ -27,7 +29,7 @@ redis_hash::redis_hash(redis_client_cluster* cluster, size_t max_conns)
 {
 }
 
-redis_hash::~redis_hash()
+redis_hash::~redis_hash(void)
 {
 }
 
@@ -424,8 +426,7 @@ int redis_hash::hscan(const char* key, int cursor, std::map<string, string>& out
 	string name(128), value(128);
 	// out.clear();
 
-	for (size_t i = 0; i < size;)
-	{
+	for (size_t i = 0; i < size;) {
 		rr = children[i];
 		rr->argv_to_string(name);
 		i++;
@@ -441,3 +442,5 @@ int redis_hash::hscan(const char* key, int cursor, std::map<string, string>& out
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

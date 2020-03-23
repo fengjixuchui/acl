@@ -4,6 +4,8 @@
 #include "acl_cpp/memcache/memcache_pool.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
@@ -13,14 +15,15 @@ memcache_pool::memcache_pool(const char* addr, size_t count,
 {
 }
 
-memcache_pool::~memcache_pool()
+memcache_pool::~memcache_pool(void)
 {
-
 }
 
-connect_client* memcache_pool::create_connect()
+connect_client* memcache_pool::create_connect(void)
 {
 	return NEW memcache(addr_);
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

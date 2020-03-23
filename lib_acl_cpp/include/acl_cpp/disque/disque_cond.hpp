@@ -1,5 +1,8 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 namespace acl
 {
@@ -7,7 +10,7 @@ namespace acl
 /**
  * 在添加任务时，此类指定的任务的添加条件限定
  */
-class ACL_CPP_API disque_cond
+class ACL_CPP_API disque_cond : public noncopyable
 {
 public:
 	disque_cond();
@@ -60,3 +63,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

@@ -3,6 +3,8 @@
 #include "acl_cpp/mime/mime_uucode.hpp"
 #endif
 
+#if !defined(ACL_MIME_DISABLE)
+
 namespace acl {
 
 static const unsigned char to_uucode_tab[] =
@@ -28,23 +30,23 @@ static const unsigned char un_uucode_tab[] = {
 };
 
 mime_uucode::mime_uucode(bool addCrlf /* = false */, bool addInvalid /* = false */)
-	: mime_code(addCrlf, addInvalid, "uucode")
+: mime_code(addCrlf, addInvalid, "uucode")
 {
 	init(to_uucode_tab, un_uucode_tab, '~');
 }
 
-mime_uucode::~mime_uucode()
+mime_uucode::~mime_uucode(void)
 {
 }
 
-void mime_uucode::encode(const char* in, int n, acl::string* out)
+void mime_uucode::encode(const char* in, int n, string* out)
 {
 	mime_uucode coder(false, false);
 	coder.encode_update(in, n, out);
 	coder.encode_finish(out);
 }
 
-void mime_uucode::decode(const char* in, int n, acl::string* out)
+void mime_uucode::decode(const char* in, int n, string* out)
 {
 	mime_uucode decoder(false, false);
 	decoder.decode_update(in, n, out);
@@ -52,3 +54,5 @@ void mime_uucode::decode(const char* in, int n, acl::string* out)
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_MIME_DISABLE)

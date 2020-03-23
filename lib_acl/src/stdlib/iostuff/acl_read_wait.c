@@ -34,6 +34,7 @@ typedef struct EPOLL_CTX
 	int  epfd;
 } EPOLL_CTX;
 
+#ifndef HAVE_NO_ATEXIT
 static EPOLL_CTX *main_epoll_ctx = NULL;
 
 static void main_epoll_end(void)
@@ -50,6 +51,7 @@ static void main_epoll_end(void)
 		main_epoll_ctx = NULL;
 	}
 }
+#endif
 
 static acl_pthread_key_t epoll_key;
 static acl_pthread_once_t epoll_once = ACL_PTHREAD_ONCE_INIT;
@@ -69,7 +71,8 @@ static void thread_epoll_end(void *ctx)
 
 static void thread_epoll_once(void)
 {
-	acl_assert(acl_pthread_key_create(&epoll_key, thread_epoll_end) == 0);
+	if (acl_pthread_key_create(&epoll_key, thread_epoll_end) != 0)
+		abort();
 }
 
 static EPOLL_CTX *thread_epoll_init(void)
@@ -77,7 +80,8 @@ static EPOLL_CTX *thread_epoll_init(void)
 	const char *myname = "thread_epoll_init";
 	EPOLL_CTX *epoll_ctx = (EPOLL_CTX*) acl_mymalloc(sizeof(EPOLL_CTX));
 
-	acl_assert(acl_pthread_setspecific(epoll_key, epoll_ctx) == 0);
+	if (acl_pthread_setspecific(epoll_key, epoll_ctx) != 0)
+		abort();
 
 	epoll_ctx->tid = acl_pthread_self();
 	epoll_ctx->epfd = epoll_create(1);
@@ -88,8 +92,10 @@ static EPOLL_CTX *thread_epoll_init(void)
 	}
 
 	if ((unsigned int) acl_pthread_self() == acl_main_thread_self()) {
+#ifndef HAVE_NO_ATEXIT
 		main_epoll_ctx = epoll_ctx;
 		atexit(main_epoll_end);
+#endif
 		acl_msg_info("%s(%d): %s, create epoll_fd: %d, tid: %lu, %lu",
 			__FILE__, __LINE__, myname, epoll_ctx->epfd,
 			epoll_ctx->tid, acl_pthread_self());
@@ -124,7 +130,8 @@ int acl_read_epoll_wait(ACL_SOCKET fd, int delay)
 	struct epoll_event ee, events[1];
 	time_t begin;
 
-	acl_assert(acl_pthread_once(&epoll_once, thread_epoll_once) == 0);
+	if (acl_pthread_once(&epoll_once, thread_epoll_once) != 0)
+		abort();
 	epoll_ctx = (EPOLL_CTX*) acl_pthread_getspecific(epoll_key);
 	if (epoll_ctx == NULL) {
 		epoll_ctx = thread_epoll_init();

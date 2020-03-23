@@ -9,17 +9,35 @@ if (${CMAKE_BINARY_DIR} STREQUAL ${CMAKE_CURRENT_SOURCE_DIR})
 	message(FATAL_ERROR "Please into another dir to build!")
 endif()
 
-#string(TOUPPER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME)
 if (CMAKE_SYSTEM_NAME MATCHES "Android")
+	# xxx: -flto can't be used on NDK with gnustl_shared
+	if (ANDROID_STL MATCHES "gnustl_shared")
+		add_definitions("-Oz -g -DHAVE_NO_ATEXIT")
+	else()
+		add_definitions("-O3 -flto")
+	endif()
 	add_definitions("-DANDROID")
+	add_definitions("-DACL_CLIENT_ONLY")
+	add_definitions("-Wno-invalid-source-encoding")
+	add_definitions("-fdata-sections -ffunction-sections")
+	add_definitions("-Wno-unused-command-line-argument")
+	string(APPEND CMAKE_C_FLAGS "-Qunused-arguments")
 	set(UNIX_OS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Linux")
+	add_definitions("-O2")
 	set(UNIX_OS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	add_definitions("-O3")
+	add_definitions("-Wno-invalid-source-encoding")
+	add_definitions("-fdata-sections -ffunction-sections")
+	add_definitions("-flto")
+	add_definitions("-Os")
 	set(UNIX_OS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+	add_definitions("-O2")
 	set(UNIX_OS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Windows")
+	set(CMAKE_SHARED_LINKER_FLAGS "/DYNAMICBASE ws2_32.lib IPHlpApi.lib")
 	set(WIN_OS true)
 else()
 	message(FATAL_ERROR "unknown CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}")
@@ -75,16 +93,15 @@ endforeach()
 
 ##############################################################################
 
-if (CMAKE_BUILD_TYPE STREQUAL "")
-	set(CMAKE_BUILD_TYPE "DEBUG")
-else()
-	string(TOUPPER CMAKE_BUILD_TYPE CMAKE_BUILD_TYPE)
-endif()
+#if (CMAKE_BUILD_TYPE STREQUAL "")
+#	set(CMAKE_BUILD_TYPE "DEBUG")
+#else()
+#	string(TOUPPER CMAKE_BUILD_TYPE CMAKE_BUILD_TYPE)
+#endif()
 
 if (${UNIX_OS})
 	add_definitions(
 		"-W"
-		"-O2"
 		"-fPIC"
 		"-Wall"
 		"-Werror"
@@ -102,7 +119,6 @@ if (${UNIX_OS})
 		"-Wstrict-prototypes"
 	)
 
-
 	if (CMAKE_COMPILER_IS_GNUCC)
 		execute_process(COMMAND ${CMAKE_C_COMPILER} -dumpversion
 			OUTPUT_VARIABLE GCC_VERSION)
@@ -119,13 +135,7 @@ if (${UNIX_OS})
 		endif()
 	endif()
 
-	if (!CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-		add_definitions("-Wno-invalid-source-encoding")
-	endif()
-
-	if (CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-		add_definitions("-O3")
-	else()
+	if (!CMAKE_BUILD_TYPE STREQUAL "RELEASE")
 		add_definitions("-g")
 	endif()
 elseif (${WIN_OS})
@@ -136,23 +146,33 @@ elseif (${WIN_OS})
 		"-DACL_PREPARE_COMPILE")
 endif()
 
-if (CMAKE_SYSTEM_NAME MATCHES "Android")
-	set(CMAKE_SHARED_LINKER_FLAGS "-shared")
-	add_definitions("-Wno-invalid-source-encoding")
-else()
-	set(lib_output_path ${PROJECT_BINARY_DIR}/lib)
-
-	set(LIBRARY_OUTPUT_PATH ${lib_output_path})
-	add_library(acl_static STATIC ${lib_src})
-	SET_TARGET_PROPERTIES(acl_static PROPERTIES OUTPUT_NAME "acl")
-
-	if (${WIN_OS})
-		set(CMAKE_SHARED_LINKER_FLAGS "/DYNAMICBASE ws2_32.lib IPHlpApi.lib")
-	endif()
-
-	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${lib_output_path})
+if (ACL_CLIENT_ONLY MATCHES "YES")
+	add_definitions("-DACL_CLIENT_ONLY")
+	message(STATUS "acl: ACL_CLIENT_ONLY been set")
 endif()
 
-add_library(acl SHARED ${lib_src})
+if (CMAKE_SYSTEM_NAME MATCHES "Android")
+	set(lib_output_path ${CMAKE_CURRENT_SOURCE_DIR}/../android/lib/${ANDROID_ABI})
+else()
+	set(lib_output_path ${PROJECT_BINARY_DIR}/lib)
+endif()
+
+set(LIBRARY_OUTPUT_PATH ${lib_output_path})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${lib_output_path})
+
+add_library(acl_static STATIC ${lib_src})
+SET_TARGET_PROPERTIES(acl_static PROPERTIES OUTPUT_NAME "acl")
+link_directories(${lib_output_path})
+
+if (${UNIX_OS})
+	if (NOT ANDROID_STL MATCHES "gnustl_shared")
+		set(CMAKE_SHARED_LINKER_FLAGS "-shared -O3 -flto")
+	endif()
+	target_compile_options(acl_static PRIVATE -fvisibility=hidden)
+endif()
+
+if (ACL_BUILD_SHARED MATCHES "YES")
+	add_library(acl SHARED ${lib_src})
+endif()
 
 ##############################################################################

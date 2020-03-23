@@ -561,8 +561,6 @@ int rfc1035MessageUnpack(const char *buf, size_t sz, rfc1035_message **answer)
 			RFC1035_UNPACK_DEBUG;
 			rfc1035SetErrno(rfc1035_unpack_error);
 			rfc1035MessageDestroy(msg);
-			acl_myfree(msg->query);
-			acl_myfree(msg);
 			return -rfc1035_unpack_error;
 		}
 	}
@@ -602,8 +600,6 @@ int rfc1035MessageUnpack(const char *buf, size_t sz, rfc1035_message **answer)
 		* didn't actually get any.
 		*/
 		rfc1035MessageDestroy(msg);
-		acl_myfree(msg->query);
-		acl_myfree(msg);
 		*answer = NULL;
 		rfc1035SetErrno(rfc1035_unpack_error);
 		return -rfc1035_unpack_error;
@@ -677,7 +673,7 @@ static int rfc1035RRPack(const rfc1035_rr *RR, char *buf, size_t sz)
 	return (off);
 }
 
-ssize_t rfc1035BuildAReply(const char *hostname, const ACL_ARGV *ip_argv,
+size_t rfc1035BuildAReply(const char *hostname, const ACL_ARGV *ip_argv,
 	const char *domain_root, const char *dnsname, const char *dns_ip,
 	unsigned short qid, char *buf, size_t sz)
 {
@@ -744,7 +740,7 @@ ssize_t rfc1035BuildAReply(const char *hostname, const ACL_ARGV *ip_argv,
 		acl_myfree(rr.rdata);
 	}
 
-	return ((int) offset);
+	return offset;
 }
 /*
 * rfc1035BuildAQuery()
@@ -756,7 +752,7 @@ ssize_t rfc1035BuildAReply(const char *hostname, const ACL_ARGV *ip_argv,
 * the size of the message (i.e. how much to write).
 * Returns the size of the query
 */
-ssize_t rfc1035BuildAQuery(const char *hostname, char *buf, size_t sz,
+size_t rfc1035BuildAQuery(const char *hostname, char *buf, size_t sz,
 	unsigned short qid, rfc1035_query * query)
 {
 	const char *myname = "rfc1035BuildAQuery";
@@ -780,7 +776,7 @@ ssize_t rfc1035BuildAQuery(const char *hostname, char *buf, size_t sz,
 
 	if (offset > sz)
 		acl_msg_fatal("%s: offset(%d) > sz(%d)", myname, (int) offset, (int) sz);
-	return (ssize_t) offset;
+	return offset;
 }
 
 /*
@@ -793,7 +789,7 @@ ssize_t rfc1035BuildAQuery(const char *hostname, char *buf, size_t sz,
 * the size of the message (i.e. how much to write).
 * Returns the size of the query
 */
-ssize_t rfc1035BuildPTRQuery(const struct in_addr addr, char *buf,
+size_t rfc1035BuildPTRQuery(const struct in_addr addr, char *buf,
 	size_t sz, unsigned short qid, rfc1035_query * query)
 {
 	const char *myname = "rfc1035BuildPTRQuery";
@@ -821,7 +817,7 @@ ssize_t rfc1035BuildPTRQuery(const struct in_addr addr, char *buf,
 	}
 	if (offset > sz)
 		acl_msg_fatal("%s: offset(%d) > sz(%d)", myname, (int) offset, (int) sz);
-	return (ssize_t) offset;
+	return offset;
 }
 
 /*

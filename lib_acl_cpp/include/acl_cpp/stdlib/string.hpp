@@ -27,9 +27,9 @@ public:
 	 *  则当调用 += int|int64|short|char 或调用 << int|int64|short|char
 	 *  时，则按二进制方式处理，否则按文本方式处理
 	 */
-	string(void);
-	explicit string(size_t n);
 	string(size_t n, bool bin);
+	explicit string(size_t n);
+	string(void);
 
 	/**
 	 * 构造函数
@@ -782,7 +782,7 @@ public:
 	int find(char n) const;
 
 	/**
-	 * 查找指定字符吕在当前对象缓冲区的起始位置（下标从 0 开始）
+	 * 查找指定字符串在当前对象缓冲区的起始位置（下标从 0 开始）
 	 * @param needle {const char*} 要查找的有符号字符串
 	 * @param case_sensitive {bool} 为 true 表示区分大小写
 	 * @return {char*} 字符串在缓冲区中的起始位置，返回空指针则表示不存在
@@ -790,7 +790,7 @@ public:
 	char* find(const char* needle, bool case_sensitive=true) const;
 
 	/**
-	 * 从尾部向前查找指定字符吕在当前对象缓冲区的起始位置（下标从 0 开始）
+	 * 从尾部向前查找指定字符串在当前对象缓冲区的起始位置（下标从 0 开始）
 	 * @param needle {const char*} 要查找的有符号字符串
 	 * @param case_sensitive {bool} 为 true 表示区分大小写
 	 * @return {char*} 字符串在缓冲区中的起始位置，若返回值为空指针则表示不存在
@@ -1272,17 +1272,53 @@ public:
 	static string& parse_int64(unsigned long long int n);
 #endif
 
+	/**
+	 * 模板函数，可用在以下场景:
+	 * string s1, s2;
+	 * T v;
+	 * s1 = s2 + v;
+	 */
+	template<typename T>
+	string& operator+(T v)
+	{
+		*this += v;
+		return *this;
+	}
+
 private:
-	bool use_bin_;
 	ACL_VSTRING* vbf_;
 	char* scan_ptr_;
 	std::list<string>* list_tmp_;
 	std::vector<string>* vector_tmp_;
 	std::pair<string, string>* pair_tmp_;
 	ACL_LINE_STATE* line_state_;
-	int   line_state_offset_;
+	int  line_state_offset_;
+	bool use_bin_;
 
 	void init(size_t len);
 };
+
+/**
+ * 模板函数，可用在以下场景:
+ * string s1, s2;
+ * T v;
+ * s1 = v + s2;
+ */
+template<typename T>
+string operator+(T v, const string& rhs)
+{
+	string s;
+	s = v;
+	s += rhs;
+	return s;
+}
+
+/**
+ * 示例:
+ * string s, s1 = "hello", s2 = "world";
+ * s = s1 + " " + s2;
+ * s = ">" + s1 + " " + s2;
+ * s = 1000 + s1 + " " + s2 + 1000;
+ */
 
 } // namespce acl

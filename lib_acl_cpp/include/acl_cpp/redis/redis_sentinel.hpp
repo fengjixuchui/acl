@@ -5,6 +5,8 @@
 #include "redis_master.hpp"
 #include "redis_slave.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -36,3 +38,5 @@ public:
 };
 
 }
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

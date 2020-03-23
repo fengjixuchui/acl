@@ -3,7 +3,10 @@
 #include <vector>
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "../stream/socket_stream.hpp"
+
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_BEANSTALK_DISABLE)
 
 struct ACL_ARGV;
 
@@ -27,7 +30,7 @@ namespace acl {
  * close 函数后，不仅断开了与 beanstalkd 服务器的连接，同时会清除本类对象中存储的
  * use 及 watch 队列
  */
-class ACL_CPP_API beanstalk
+class ACL_CPP_API beanstalk : public noncopyable
 {
 public:
 	/**
@@ -307,3 +310,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_BEANSTALK_DISABLE)

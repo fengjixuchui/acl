@@ -2,6 +2,7 @@
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
 #include "../stdlib/locker.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <vector>
 #include <map>
 
@@ -28,15 +29,15 @@ struct conns_pools {
 /**
  * connect pool 服务管理器，有获取连接池等功能
  */
-class ACL_CPP_API connect_manager
+class ACL_CPP_API connect_manager : public noncopyable
 {
 public:
 	connect_manager(void);
 	virtual ~connect_manager(void);
 
 	/**
-	 * 是否将连接池与线程自动绑定，主要用于协程环境中，内部缺省值为 false，该方法
-	 * 在本对象创建后仅能调用一次
+	 * 是否将连接池与线程自动绑定，主要用于协程环境中，内部缺省值为 false，
+	 * 该方法在本对象创建后仅能调用一次
 	 * @param yes {bool}
 	 */
 	void bind_thread(bool yes);

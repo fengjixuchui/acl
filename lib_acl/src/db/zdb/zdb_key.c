@@ -11,6 +11,8 @@
 
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 #include "zdb_private.h"
 
 int key_store_header_sync(ZDB_KEY_STORE *store)
@@ -36,6 +38,7 @@ static void free_tls(void *ptr)
 }
 
 static void *__tls = NULL;
+#ifndef HAVE_NO_ATEXIT
 static void main_free_tls(void)
 {
 	if (__tls) {
@@ -43,13 +46,16 @@ static void main_free_tls(void)
 		__tls = NULL;
 	}
 }
+#endif
 
 static acl_pthread_key_t  once_key;
 static void once_init(void)
 {
 	if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 		acl_pthread_key_create(&once_key, dummy);
+#ifndef HAVE_NO_ATEXIT
 		atexit(main_free_tls);
+#endif
 	} else
 		acl_pthread_key_create(&once_key, free_tls);
 }
@@ -639,3 +645,5 @@ int zdb_key_init(ZDB *db, zdb_key_t key_begin, zdb_key_t key_end)
 
 	return (0);
 }
+
+#endif /* ACL_CLIENT_ONLY */

@@ -16,10 +16,10 @@ namespace acl
 class ACL_CPP_API aio_open_callback : public aio_callback
 {
 public:
-	aio_open_callback() {}
-	virtual ~aio_open_callback() {}
+	aio_open_callback(void) {}
+	virtual ~aio_open_callback(void) {}
 
-	virtual bool open_callback() = 0;
+	virtual bool open_callback(void) = 0;
 protected:
 private:
 };
@@ -54,7 +54,7 @@ public:
 	/**
 	 * 构造函数，创建网络异步客户端流，并 hook 读写过程及关闭/超时过程
 	 * @param handle {aio_handle*} 异步引擎句柄
-	 * @param fd {ACL_SOCKET} 连接套接口句柄
+	 * @param fd {int} 连接套接口句柄
 	 */
 #if defined(_WIN32) || defined(_WIN64)
 	aio_socket_stream(aio_handle* handle, SOCKET fd);
@@ -111,25 +111,23 @@ public:
 	 * 针对 open 过程，判断是否已经连接成功
 	 * @return {bool} 返回 true 表示连接成功，否则表示还连接成功
 	 */
-	bool is_opened() const;
+	bool is_opened(void) const;
 
 protected:
-	virtual ~aio_socket_stream();
+	virtual ~aio_socket_stream(void);
 
 	/**
 	 * 通过此函数来动态释放只能在堆上分配的异步流类对象
 	 */
-	virtual void destroy();
+	virtual void destroy(void);
 
 	/**
 	 * 注册流连接成功的回调过程
 	 */
-	void hook_open();
+	void hook_open(void);
 
 private:
-	bool opened_;  // 针对 open 函数而言表示连接是否成功
-	bool open_hooked_;
-	std::list<AIO_OPEN_CALLBACK*> open_callbacks_;
+	std::list<AIO_OPEN_CALLBACK*>* open_callbacks_;
 
 	static int open_callback(ACL_ASTREAM*, void*);
 };

@@ -8,6 +8,8 @@
 #include "acl_cpp/redis/redis_list.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -294,6 +296,7 @@ int redis_list::pop(const char* cmd, const char* key, string& buf)
 	argv[1] = key;
 	lens[1] = strlen(key);
 
+	hash_slot(key);
 	build_request(2, argv, lens);
 	return (int) get_string(buf);
 }
@@ -310,6 +313,8 @@ bool redis_list::blpop(std::pair<string, string>& result, size_t timeout,
 	while ((key = va_arg(ap, const char*)) != NULL)
 		keys.push_back(key);
 	va_end(ap);
+
+	hash_slot(first_key);
 	return blpop(keys, timeout, result);
 }
 
@@ -338,6 +343,8 @@ bool redis_list::brpop(std::pair<string, string>& result, size_t timeout,
 	while ((key = va_arg(ap, const char*)) != NULL)
 		keys.push_back(key);
 	va_end(ap);
+
+	hash_slot(first_key);
 	return brpop(keys, timeout, result);
 }
 
@@ -366,8 +373,7 @@ bool redis_list::bpop(const char* cmd, const std::vector<const char*>& keys,
 
 	size_t i = 1;
 	std::vector<const char*>::const_iterator cit = keys.begin();
-	for (; cit != keys.end(); ++cit)
-	{
+	for (; cit != keys.end(); ++cit) {
 		args[i] = *cit;
 		lens[i] = strlen(args[i]);
 		i++;
@@ -394,8 +400,7 @@ bool redis_list::bpop(const char* cmd, const std::vector<string>& keys,
 
 	size_t i = 1;
 	std::vector<string>::const_iterator cit = keys.begin();
-	for (; cit != keys.end(); ++cit)
-	{
+	for (; cit != keys.end(); ++cit) {
 		args[i] = (*cit).c_str();
 		lens[i] = (*cit).length();
 		i++;
@@ -428,8 +433,8 @@ bool redis_list::bpop(std::pair<string, string>& out)
 	const redis_result* second = result->get_child(1);
 	if (first == NULL || second == NULL
 		|| first->get_type() != REDIS_RESULT_STRING
-		|| second->get_type() != REDIS_RESULT_STRING)
-	{
+		|| second->get_type() != REDIS_RESULT_STRING) {
+
 		return false;
 	}
 
@@ -501,6 +506,7 @@ bool redis_list::lrange(const char* key, int start, int end,
 	argv[3] = end_s;
 	lens[3] = strlen(end_s);
 
+	hash_slot(key);
 	build_request(4, argv, lens);
 	return get_strings(result) < 0 ? false : true;
 }
@@ -528,6 +534,7 @@ int redis_list::lrem(const char* key, int count, const char* value, size_t len)
 	argv[3] = value;
 	lens[3] = len;
 
+	hash_slot(key);
 	build_request(4, argv, lens);
 	return get_number();
 }
@@ -551,8 +558,11 @@ bool redis_list::ltrim(const char* key, int start, int end)
 	argv[3] = end_s;
 	lens[3] = strlen(end_s);
 
+	hash_slot(key);
 	build_request(4, argv, lens);
 	return check_status();
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

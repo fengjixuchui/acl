@@ -3,6 +3,8 @@
 #include "../stdlib/string.hpp"
 #include "../db/db_service.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl {
 
 class ACL_CPP_API db_service_mysql : public db_service
@@ -54,3 +56,5 @@ private:
 };
 
 }
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

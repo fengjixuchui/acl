@@ -1,17 +1,6 @@
-/**
- * Copyright (C) 2017-2018 IQIYI
- * All rights reserved.
- *
- * AUTHOR(S)
- *   Zheng Shuxin
- *   E-mail: zhengshuxin@qiyi.com
- * 
- * VERSION
- *   Tue 22 Aug 2017 11:09:55 AM CST
- */
-
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "noncopyable.hpp"
 
 #if !defined(_WIN32) && !defined(_WIN64)
 # include <pthread.h>
@@ -27,7 +16,7 @@ namespace acl {
 /**
  * Ïß³Ì»¥³âËø
  */
-class ACL_CPP_API thread_mutex
+class ACL_CPP_API thread_mutex : public noncopyable
 {
 public:
 	/**
@@ -68,7 +57,7 @@ private:
 #endif
 };
 
-class ACL_CPP_API thread_mutex_guard
+class ACL_CPP_API thread_mutex_guard : public noncopyable
 {
 public:
 	thread_mutex_guard(thread_mutex& mutex);

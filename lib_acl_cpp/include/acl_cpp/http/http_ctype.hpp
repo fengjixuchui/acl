@@ -1,6 +1,9 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
+
+#if !defined(ACL_MIME_DISABLE)
 
 namespace acl {
 
@@ -13,7 +16,7 @@ namespace acl {
  * Content-Type: xxx/xxx; name=xxx
  * ...
  */
-class ACL_CPP_API http_ctype
+class ACL_CPP_API http_ctype : public noncopyable
 {
 public:
 	http_ctype(void);
@@ -80,3 +83,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_MIME_DISABLE)

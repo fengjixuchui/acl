@@ -119,7 +119,17 @@ static void init_log_mutex(acl_pthread_mutex_t *lock)
 	pthread_mutexattr_t attr;
 
 	n1 = pthread_mutexattr_init(&attr);
+
+	/* 使用了 pthread_atfork() 来避免 fork 后的死锁，因为在 fork 前调用过
+	 * 加锁过程，所以需将此锁设为递归锁 --- zsx, 2019.8.6
+	 */
+# if defined(ACL_FREEBSD) || defined(ACL_SUNOS5) || defined(ACL_MACOSX)
 	n2 = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE);
+# elif defined(MINGW)
+	n2 = 0
+# else
+	n2 = pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_RECURSIVE_NP);
+# endif
 	thread_mutex_init(lock, !n1 && !n2 ? &attr : NULL);
 #else
 	thread_mutex_init(lock, NULL);
@@ -566,7 +576,7 @@ static int open_log(const char *recipient, const char *logpre)
 		return open_file_log(recipient, logpre);
 }
 
-#ifdef	ACL_UNIX
+#if defined(ACL_UNIX) && !defined(ACL_ANDROID)
 static void fork_prepare(void)
 {
 	if (__loggers != NULL) {
@@ -574,6 +584,7 @@ static void fork_prepare(void)
 		acl_foreach(iter, __loggers) {
 			ACL_LOG *log = (ACL_LOG *) iter.data;
 			if (log->lock) {
+				thread_mutex_unlock(log->lock);
 				thread_mutex_lock(log->lock);
 			}
 		}
@@ -600,7 +611,8 @@ static void fork_in_child(void)
 		acl_foreach(iter, __loggers) {
 			ACL_LOG *log = (ACL_LOG *) iter.data;
 			if (log->lock) {
-				init_log_mutex(log->lock);
+				thread_mutex_unlock(log->lock);
+				/* init_log_mutex(log->lock); */
 			}
 		}
 	}
@@ -646,7 +658,7 @@ int acl_open_log(const char *recipients, const char *logpre)
 
 	acl_argv_free(argv);
 
-#ifdef	ACL_UNIX
+#if defined(ACL_UNIX) && !defined(ACL_ANDROID)
 	pthread_atfork(fork_prepare, fork_in_parent, fork_in_child);
 #endif
 	return 0;
@@ -729,14 +741,14 @@ static char *get_buf(const char *prefix, const char *fmt, va_list ap,
 
 #else
 
-static char *get_buf(const char *prefix, const char *fmt, va_list ap,
+char *get_buf(const char *prefix, const char *fmt, va_list ap,
 	const char *suffix, size_t *len)
 {
 	char  *buf, *ptr;
 	size_t prefix_len = strlen(prefix);
 	size_t suffix_len = suffix ? strlen(suffix) : 0;
 	size_t total_len, left_len;
-	int    ret, i;
+	int    ret;
 
 	total_len = prefix_len + 1024;
 	buf = (char*) malloc(total_len);
@@ -748,24 +760,23 @@ static char *get_buf(const char *prefix, const char *fmt, va_list ap,
 	ret = vsnprintf(ptr, left_len, fmt, ap);
 	if (ret > 0 && ret < (int) left_len) {
 		*len = prefix_len + ret;
-		return buf;
-	}
+	} else {
+		int i = 0;
+		for (;;) {
+			total_len += 1024;
+			buf = (char*) realloc(buf, total_len);
+			acl_assert(buf);
 
-	i = 0;
-	while (1) {
-		total_len += 1024;
-		buf = (char*) realloc(buf, total_len);
-		acl_assert(buf);
-
-		ptr = buf + prefix_len;
-		left_len = total_len - prefix_len;
-		ret = vsnprintf(ptr, left_len, fmt, ap);
-		if (ret > 0 && ret < (int) left_len) {
-			*len = prefix_len + ret;
-			break;
-		}
-		if (++i >= 10000) {
-			abort();
+			ptr = buf + prefix_len;
+			left_len = total_len - prefix_len;
+			ret = vsnprintf(ptr, left_len, fmt, ap);
+			if (ret > 0 && ret < (int) left_len) {
+				*len = prefix_len + ret;
+				break;
+			}
+			if (++i >= 10000) {
+				abort();
+			}
 		}
 	}
 

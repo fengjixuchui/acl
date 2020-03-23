@@ -5,6 +5,8 @@
 #include <utility>
 #include "redis_command.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -105,7 +107,7 @@ public:
 	 *  the key of the sorted set
 	 * @param inc {double} 增量值
 	 *  the value to be increased
-	 * @param member{const char*} 有序集中成员名
+	 * @param member {const char*} 有序集中成员名
 	 *  the specified memeber of a sorted set
 	 * @param result {double*} 非空时存储结果值
 	 *  if not null, it will store the score result after increment
@@ -173,7 +175,7 @@ public:
 	 * @param key {const char*} 有序集键值
 	 * @param start {int} 起始下标位置
 	 * @param stop {int} 结束下标位置（结果集同时含该位置）
-	 * @param result 存储 "成员名-分值对"结果集，内部先调用 out.clear()
+	 * @param out 存储 "成员名-分值对"结果集，内部先调用 out.clear()
 	 * @return {int} 结果集中成员的数量
 	 *  0: 表示结果集为空或 key 不存在
 	 * -1: 表示出错或 key 对象非有序集对象
@@ -353,7 +355,7 @@ public:
 	 * @param key {const char*} 有序集键值
 	 * @param start {int} 起始下标位置
 	 * @param stop {int} 结束下标位置（结果集同时含该位置）
-	 * @param result 存储 "成员名-分值对"结果集，内部先调用 out.clear()
+	 * @param out 存储 "成员名-分值对"结果集，内部先调用 out.clear()
 	 *  注：对于下标位置，0 表示第一个成员，1 表示第二个成员；-1 表示最后一个成员，
 	 *     -2 表示倒数第二个成员，以此类推
 	 * @return {int} 结果集数量，-1 表示出错
@@ -513,6 +515,19 @@ public:
 	 */
 	int zremrangebylex(const char* key, const char* min, const char* max);
 
+	int zpopmin(const char* key,
+		std::vector<std::pair<string, double> >& out, size_t count = 1);
+	int zpopmax(const char* key,
+		std::vector<std::pair<string, double> >& out, size_t count = 1);
+	int bzpopmin(const char* key, size_t timeout, string& member,
+		double* score = NULL);
+	int bzpopmax(const char* key, size_t timeout, string& member,
+		double* score = NULL);
+	int bzpopmin(const std::vector<string>& keys, size_t timeout,
+		string& member, double* score = NULL);
+	int bzpopmax(const std::vector<string>& keys, size_t timeout,
+		string& member, double* score = NULL);
+
 private:
 	int zrange_get(const char* cmd, const char* key, int start,
 		int stop, std::vector<string>* result);
@@ -529,6 +544,16 @@ private:
 		const std::map<string, double>& keys, const char* aggregate);
 	int zstore(const char* cmd, const char* dst, const std::vector<string>& keys,
 		const std::vector<double>* weights, const char* aggregate);
+	int zpop(const char* cmd, const char* key,
+		std::vector<std::pair<string, double> >& out, size_t count);
+	int get_with_scores(std::vector<std::pair<string, double> >& out);
+	int bzpop(const char* cmd, const char* key, size_t timeout,
+		string& member, double* score);
+	int bzpop(const char* cmd, const std::vector<string>& keys,
+		size_t timeout, string& member, double* score);
+	int bzpop_result(string& member, double* score);
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

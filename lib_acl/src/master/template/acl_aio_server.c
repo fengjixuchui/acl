@@ -10,6 +10,7 @@
 
 #endif
 
+#ifndef ACL_CLIENT_ONLY
 #ifdef ACL_UNIX
 
 #include <sys/socket.h>
@@ -221,22 +222,26 @@ static void aio_init(void)
 
 static void lock_closing_time(void)
 {
-	acl_assert(pthread_mutex_lock(&__closing_time_mutex) == 0);
+	if (pthread_mutex_lock(&__closing_time_mutex) != 0)
+		abort();
 }
 
 static void unlock_closing_time(void)
 {
-	acl_assert(pthread_mutex_unlock(&__closing_time_mutex) == 0);
+	if (pthread_mutex_unlock(&__closing_time_mutex) != 0)
+		abort();
 }
 
 static void lock_counter(void)
 {
-	acl_assert(pthread_mutex_lock(&__counter_mutex) == 0);
+	if (pthread_mutex_lock(&__counter_mutex) != 0)
+		abort();
 }
 
 static void unlock_counter(void)
 {
-	acl_assert(pthread_mutex_unlock(&__counter_mutex) == 0);
+	if (pthread_mutex_unlock(&__counter_mutex) != 0)
+		abort();
 }
 
 static void update_closing_time(void)
@@ -659,6 +664,7 @@ static void free_tls(void *ptr)
 }
 
 static void *__tls = NULL;
+#ifndef HAVE_NO_ATEXIT
 static void main_free_tls(void)
 {
 	if (__tls) {
@@ -666,13 +672,16 @@ static void main_free_tls(void)
 		__tls = NULL;
 	}
 }
+#endif
 
 static acl_pthread_key_t  once_key;
 static void once_init(void)
 {
 	if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 		acl_pthread_key_create(&once_key, dummy);
+#ifndef HAVE_NO_ATEXIT
 		atexit(main_free_tls);
+#endif
 	} else
 		acl_pthread_key_create(&once_key, free_tls);
 }
@@ -1596,3 +1605,4 @@ void acl_aio_app2_main(int argc, char *argv[], ACL_AIO_RUN2_FN run2_fn,
 }
 
 #endif /* ACL_UNIX */
+#endif /* ACL_CLIENT_ONLY */

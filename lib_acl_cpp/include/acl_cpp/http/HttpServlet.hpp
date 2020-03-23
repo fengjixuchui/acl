@@ -1,7 +1,9 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
-#include "../stdlib/log.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "http_header.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 namespace acl {
 
@@ -13,7 +15,7 @@ class HttpServletResponse;
 /**
  * 处理 HTTP 客户端请求的基类，子类需要继承该类
  */
-class ACL_CPP_API HttpServlet
+class ACL_CPP_API HttpServlet : public noncopyable
 {
 public:
 	/**
@@ -72,6 +74,7 @@ public:
 	 * 调用本方法设置了解析数据，也不会对数据体进行解析
 	 * @param on {bool} 是否需要解析
 	 * @return {HttpServlet&}
+	 * xxxx: 该方法已经被废弃！
 	 */
 	HttpServlet& setParseBody(bool on);
 
@@ -122,126 +125,79 @@ public:
 	 */
 	virtual bool doRun(const char* memcached_addr, socket_stream* stream);
 
+protected:
 	/**
 	 * 当 HTTP 请求为 GET 方式时调用的虚函数
 	 */
-	virtual bool doGet(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doGet yet!");
-		return false;
-	}
+	virtual bool doGet(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 websocket 方式时调用的虚函数
 	 */
-	virtual bool doWebSocket(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doWebSocket yet!");
-		return false;
-	}
+	virtual bool doWebSocket(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 POST 方式时调用的虚函数
 	 */
-	virtual bool doPost(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doPost yet!");
-		return false;
-	}
+	virtual bool doPost(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 PUT 方式时调用的虚函数
 	 */
-	virtual bool doPut(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doPut yet!");
-		return false;
-	}
+	virtual bool doPut(HttpServletRequest&, HttpServletResponse&);
+
+	/**
+	 * 当 HTTP 请求为 PATCH 方式时调用的虚函数
+	 */
+	virtual bool doPatch(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 CONNECT 方式时调用的虚函数
 	 */
-	virtual bool doConnect(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doConnect yet!");
-		return false;
-	}
+	virtual bool doConnect(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 PURGE 方式时调用的虚函数，该方法在清除 SQUID 的缓存
 	 * 时会用到
 	 */
-	virtual bool doPurge(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doPurge yet!");
-		return false;
-	}
+	virtual bool doPurge(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 DELETE 方式时调用的虚函数
 	 */
-	virtual bool doDelete(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doDelete yet!");
-		return false;
-	}
+	virtual bool doDelete(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 HEAD 方式时调用的虚函数
 	 */
-	virtual bool doHead(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doHead yet!");
-		return false;
-	}
+	virtual bool doHead(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 OPTION 方式时调用的虚函数
 	 */
-	virtual bool doOptions(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doOptions yet!");
-		return false;
-	}
+	virtual bool doOptions(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求为 PROPFIND 方式时调用的虚函数
 	 */
-	virtual bool doPropfind(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doPropfind yet!");
-		return false;
-	}
+	virtual bool doPropfind(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求方法未知时调用的虚函数
 	 * @param method {const char*} 其它未知的请求方法
 	 */
 	virtual bool doOther(HttpServletRequest&, HttpServletResponse&,
-		const char* method)
-	{
-		(void) method;
-		logger_error("child not implement doOther yet!");
-		return false;
-	}
+		const char* method);
 
 	/**
 	 * 当 HTTP 请求方法未知时调用的虚函数
 	 */
-	virtual bool doUnknown(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doUnknown yet!");
-		return false;
-	}
+	virtual bool doUnknown(HttpServletRequest&, HttpServletResponse&);
 
 	/**
 	 * 当 HTTP 请求出错时调用的虚函数
 	 */
-	virtual bool doError(HttpServletRequest&, HttpServletResponse&)
-	{
-		logger_error("child not implement doError yet!");
-		return false;
-	}
+	virtual bool doError(HttpServletRequest&, HttpServletResponse&);
 
 protected:
 	HttpServletRequest* req_;
@@ -254,10 +210,11 @@ private:
 	bool first_;
 	char local_charset_[32];
 	int  rw_timeout_;
-	bool parse_body_enable_;
 	int  parse_body_limit_;
 
 	void init();
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

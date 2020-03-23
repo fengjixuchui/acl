@@ -3,6 +3,8 @@
 #include "acl_cpp/redis/redis.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -43,3 +45,5 @@ redis::redis(redis_client_cluster* cluster, size_t max_conns /* = 0 */)
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

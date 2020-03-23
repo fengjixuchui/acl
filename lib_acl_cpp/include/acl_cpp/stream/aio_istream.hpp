@@ -1,5 +1,6 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include <list>
 #include "aio_handle.hpp"
 #include "aio_timer_callback.hpp"
 #include "aio_stream.hpp"
@@ -25,17 +26,17 @@ class aio_istream;
 class ACL_CPP_API aio_timer_reader : public aio_timer_callback
 {
 public:
-	aio_timer_reader() {}
+	aio_timer_reader(void) {}
 
 	/**
 	 * 在 aio_istream 中调用此函数以释放类对象，子类应该实现该函数
 	 */
-	virtual void destroy()
+	virtual void destroy(void)
 	{
 		delete this;
 	}
 protected:
-	virtual ~aio_timer_reader() {}
+	virtual ~aio_timer_reader(void) {}
 	/**
 	 * 延迟读数据时的回调函数，从 aio_timer_callback 类中继承而来
 	 */
@@ -64,6 +65,17 @@ public:
 	 * @param handle {aio_handle*} 异步事件引擎句柄
 	 */
 	aio_istream(aio_handle* handle);
+
+	/**
+	 * 构造函数，创建异步读流对象，并 hook 读过程及关闭/超时过程
+	 * @param handle {aio_handle*} 异步事件引擎句柄
+	 * @param fd {int} 连接套接口句柄
+	 */
+#if defined(_WIN32) || defined(_WIN64)
+	aio_istream(aio_handle* handle, SOCKET fd);
+#else
+	aio_istream(aio_handle* handle, int fd);
+#endif
 
 	/**
 	 * 添加异可读时的回调类对象指针，如果该回调类对象已经存在，则只是
@@ -158,7 +170,7 @@ public:
 	 * 移除，直到用户调用任何一个异步读操作(此时，异步引擎会
 	 * 自动重新监控该流的可读状态)
 	 */
-	void disable_read();
+	void disable_read(void);
 
 	/**
 	 * 设置流是否采用连接读功能
@@ -170,11 +182,11 @@ public:
 	 * 获得流是否是设置了连续读功能
 	 * @return {bool}
 	 */
-	bool keep_read() const;
+	bool keep_read(void) const;
 
 	/**
 	 * 设置接收缓冲区的最大长度，以避免缓冲区溢出，默认值为 0 表示不限制
-	 * @param int {max}
+	 * @param max {int}
 	 * @return {aio_istream&}
 	 */
 	aio_istream& set_buf_max(int max);
@@ -186,23 +198,22 @@ public:
 	int get_buf_max(void) const;
 
 protected:
-	virtual ~aio_istream();
+	virtual ~aio_istream(void);
 
 	/**
 	 * 释放动态类对象的虚函数
 	 */
-	virtual void destroy();
+	virtual void destroy(void);
 
 	/**
 	 * 注册可读的回调函数
 	 */
-	void hook_read();
+	void hook_read(void);
 
 private:
 	friend class aio_timer_reader;
 	aio_timer_reader* timer_reader_;
 	std::list<AIO_CALLBACK*> read_callbacks_;
-	bool read_hooked_;
 
 	static int read_callback(ACL_ASTREAM*,  void*, char*, int);
 	static int read_wakeup(ACL_ASTREAM* stream, void* ctx);

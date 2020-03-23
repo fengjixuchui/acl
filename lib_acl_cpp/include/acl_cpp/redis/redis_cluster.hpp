@@ -6,6 +6,8 @@
 #include "../stdlib/string.hpp"
 #include "redis_command.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -39,10 +41,10 @@ public:
 	 * the end of the slots array
 	 * @param first {int} 第一个哈希槽，该值必须 >= 0 才有效
 	 *  the first hash-slot which must be >= 0
-	 * @param slot_list {const int[]} 要添加的哈希槽的列表
+	 *  param slot_list {const int[]} 要添加的哈希槽的列表
 	 *  the hash-slots array to be added
-	 * @param n {size_t} the count of the hash-slots list
-	 * @param slot_list {const std::vector<init>&} 要添加的哈希槽的列表
+	 *  param n {size_t} the count of the hash-slots list
+	 *  param slot_list {const std::vector<init>&} 要添加的哈希槽的列表
 	 *  the hash-slots list to be added
 	 * @return {bool} 是否成功
 	 *  return true if successful
@@ -57,10 +59,10 @@ public:
 	 * the end of the slots array
 	 * @param first {int} 第一个哈希槽，该值必须 >= 0 才有效
 	 *  the first hash-slot which must be >= 0
-	 * @param slot_list {const int[]} 要删除的哈希槽的列表
+	 *  param slot_list {const int[]} 要删除的哈希槽的列表
 	 *  the hash-slots array to be removed
-	 * @param n {size_t} the count of the hash-slots list
-	 * @param slot_list {const std::vector<init>&} 要删除的哈希槽的列表
+	 *  param n {size_t} the count of the hash-slots list
+	 *  param slot_list {const std::vector<init>&} 要删除的哈希槽的列表
 	 *  the hash-slots array to be removed
 	 * @return {bool} 是否成功
 	 *  return true if successful
@@ -128,7 +130,7 @@ public:
 	 * from the current node
 	 * @param slot {size_t} 哈希槽值
 	 *  the hash-slot value
-	 * @param src_node {const char*} 该哈希槽的 redis 迁移目标结点
+	 * @param dst_node {const char*} 该哈希槽的 redis 迁移目标结点
 	 *  the target redis-node of the hash-slot migrating to
 	 * @return {boo} 设置状态是否成功
 	 *  if success for setting the slot's status
@@ -312,3 +314,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

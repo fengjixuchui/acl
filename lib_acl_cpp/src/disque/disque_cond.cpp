@@ -3,24 +3,23 @@
 #include "acl_cpp/disque/disque_cond.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
-disque_cond::disque_cond()
-	: replicate_(0)
-	, delay_(-1)
-	, retry_(0)
-	, ttl_(0)
-	, maxlen_(0)
-	, async_(false)
+disque_cond::disque_cond(void)
+: replicate_(0)
+, delay_(-1)
+, retry_(0)
+, ttl_(0)
+, maxlen_(0)
+, async_(false)
 {
 
 }
 
-disque_cond::~disque_cond()
-{
-
-}
+disque_cond::~disque_cond(void) {}
 
 disque_cond& disque_cond::set_replicate(int n)
 {
@@ -59,3 +58,5 @@ disque_cond& disque_cond::set_async(bool on)
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

@@ -2,9 +2,12 @@
 #include "../acl_cpp_define.hpp"
 #include <vector>
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "../http/http_header.hpp"
 #include "http_ctype.hpp"
 #include "http_type.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 namespace acl {
 
@@ -25,7 +28,7 @@ class HttpServletResponse;
  * 与 HTTP 客户端请求相关的类，该类不应被继承，用户也不需要
  * 定义或创建该类对象
  */
-class ACL_CPP_API HttpServletRequest
+class ACL_CPP_API HttpServletRequest : public noncopyable
 {
 public:
 	/**
@@ -35,21 +38,13 @@ public:
 	 * @param stream {socket_stream&} 数据流，内部不会主动关闭流
 	 * @param charset {const char*} 本地字符集，该值非空时，
 	 *  内部会自动将 HTTP 请求的数据转换为本地字符集，否则不转换
-	 * @param body_parse {bool} 针对 POST 方法，该参数指定是否需要
-	 *  读取 HTTP 请求数据体类型判断是否需要自动进行分析，内部缺省为 true；
-	 *  当为 true 则内部会读取 HTTP 请求体数据，并进行分析，针对以下情况：
-	 *  1) x-www-form-urlencoded 格式：调用 getParameter 时，
-	 *  不仅可以获得 URL 中的参数，同时可以获得 POST 数据体中的参数
-	 *  2) xml 格式：可调用 getXml 获得解析好的 xml 对象
-	 *  3) json 格式：可调用 getJson 获得解析好的 json 对象
-	 *  当该参数为 false 时则不读取数据体，把读数据体的任务交给子类处理
 	 * @param body_limit {int} 针对 POST 方法，当数据体为文本参数
 	 *  类型时，此参数限制数据体的长度；当数据体为数据流或 MIME
 	 *  格式或 on 为 false，此参数无效
 	 */
 	HttpServletRequest(HttpServletResponse& res, session& store,
 		socket_stream& stream, const char* charset = NULL,
-		bool body_parse = true, int body_limit = 102400);
+		int body_limit = 102400);
 	~HttpServletRequest(void);
 
 	/**
@@ -233,40 +228,91 @@ public:
 
 	/**
 	 * 当 HTTP 请求头中的 Content-Type 为
-	 * multipart/form-data; boundary=xxx 格式时，说明为文件上传
-	 * 数据类型，则可以通过此函数获得 http_mime 对象
+	 * multipart/form-data; boundary=xxx 格式时，说明为文件上传数据类型，
+	 * 则可以通过此函数获得 http_mime 对象
 	 * @return {const http_mime*} 返回 NULL 则说明没有 MIME 对象，
 	 *  返回的值用户不能手工释放，因为在 HttpServletRequest 的析
 	 *  构中会自动释放
 	 */
-	http_mime* getHttpMime(void) const;
+	http_mime* getHttpMime(void);
 
 	/**
-	 * 数据类型为 text/json 或 application/json 格式构造函数中的 body_parse 为 true 时，则内部自动
-	 * 解析数据并创建 json 对象
+	 * 数据类型为 text/json 或 application/json 格式时可调用此方法读取 json
+	 * 数据体并进行解析，成功后返回 json 对象，该对象由内部产生并管理，当
+	 * 本 HttpServletRequest 对象释放时该 json 对象一起被释放
+	 * @param body_limit {size_t} 限定数据体长度以防止内存溢出，若请求数据
+	 *  体超过此值，则返回错误；如果此值设为 0，则不限制长度
 	 * @return {json*} 返回解析好的 json 对象，若返回 NULL 则有以下几个原因：
 	 *  1、读数据出错
 	 *  2、非 json 数据格式
-	 *  3、body_parse 在构造函数中设置的为 false
+	 *  3、数据体过长
 	 */
-	json* getJson(void) const;
+	json* getJson(size_t body_limit = 1024000);
 
 	/**
-	 * 数据类型为 text/xml 或 application/xml 格式构造函数中的 body_parse 为 true 时，则内部自动
-	 * 解析数据并创建 xml 对象
+	 * 该功能与上面方法类似，唯一区别是将解析结果存入用户传入的对象中
+	 * @param out {json&}
+	 * @param body_limit {size_t} 限定数据体长度以防止内存溢出，若请求数据
+	 *  体超过此值，则返回错误；如果此值设为 0，则不限制长度
+	 * @return {bool} 返回 false 原因如下：
+	 *  1、读数据出错
+	 *  2、非 json 数据格式
+	 *  3、数据体过长
+	 */
+	bool getJson(json& out, size_t body_limit = 1024000);
+
+	/**
+	 * 数据类型为 text/xml 或 application/xml 格式时可调用此方法读取 xml
+	 * 数据体并进行解析，成功后返回 mxl 对象，该对象由内部产生并管理，当
+	 * 本 HttpServletRequest 对象释放时该 xml 对象一起被释放
+	 * @param body_limit {size_t} 限定数据体长度以防止内存溢出，若请求数据
+	 *  体超过此值，则返回错误；如果此值设为 0，则不限制长度
 	 * @return {xml*} 返回解析好的 xml 对象，若返回 NULL 则有以下几个原因：
 	 *  1、读数据出错
 	 *  2、非 xml 数据格式
-	 *  3、body_parse 在构造函数中设置的为 false
 	 */
-	xml* getXml(void) const;
+	xml* getXml(size_t body_limit = 1024000);
+
+	/**
+	 * 该功能与上面方法类似，唯一区别是将解析结果存入用户传入的对象中
+	 * @param out {xml&}
+	 * @param body_limit {size_t} 限定数据体长度以防止内存溢出，若请求数据
+	 *  体超过此值，则返回错误；如果此值设为 0，则不限制长度
+	 * @return {bool} 返回 false 原因如下：
+	 *  1、读数据出错
+	 *  2、非 xml 数据格式
+	 *  3、数据体过长
+	 */
+	bool getXml(xml& out, size_t body_limit = 1024000);
+
+	/**
+	 * 针对 POST 类方法（即有数据请求体情形），可以直接调用此方法获得请求
+	 * 数据体的内容
+	 * @param body_limit {size_t} 限定数据体长度以防止内存溢出，若请求数据
+	 *  体超过此值，则返回错误；如果此值设为 0，则不限制长度
+	 * @return {string*} 返回存放数据体的对象，返回 NULL 有以下原因：
+	 *  1、读数据出错
+	 *  2、没有数据体
+	 *  3、数据体过长
+	 */
+	string* getBody(size_t body_limit = 1024000);
+
+	/**
+	 * 该功能与上面方法类似，唯一区别是将结果存入用户传入的对象中
+	 * @param out {string&}
+	 * @param body_limit {size_t}
+	 * @return {bool} 返回 false 原因如下：
+	 *  1、读数据出错
+	 *  2、没有数据体
+	 *  3、数据体过长
+	 */
+	bool getBody(string& out, size_t body_limit = 1024000);
 
 	/**
 	 * 获得 HTTP 请求数据的类型
-	 * @return {http_request_t}，一般对 POST 方法中的上传
-	 *  文件应用而言，需要调用该函数获得是否是上传数据类型，
-	 *  当该函数返回 HTTP_REQUEST_OTHER 时，用户可以通过调用
-	 *  getContentType 获得具体的类型字符串
+	 * @return {http_request_t}，一般对 POST 方法中的上传文件应用，需要调用
+	 *  该函数获得是否是上传数据类型，当该函数返回 HTTP_REQUEST_OTHER 时，
+	 *  用户可以通过调用 getContentType 获得具体的类型字符串
 	 */
 	http_request_t getRequestType(void) const;
 
@@ -293,6 +339,14 @@ public:
 	 * @return {int} 返回值 < 0 表示不存在 Keep-Alive 字段
 	 */
 	int getKeepAlive(void) const;
+
+	/**
+	 * 获得 HTTP 客户端请求的版本号
+	 * @param major {unsigned&} 将存放主版本号
+	 * @param minor {unsigned&} 将存放次版本号
+	 * @return {bool} 是否成功取得了客户端请求的版本号
+	 */
+	bool getVersion(unsigned& major, unsigned& minor) const;
 
 	/**
 	 * 获得 HTTP 客户端支持的数据压缩算法集合
@@ -344,8 +398,8 @@ private:
 	session& store_;
 	HttpSession* http_session_;
 	socket_stream& stream_;
-	bool body_parse_;
 	int  body_limit_;
+	bool body_parsed_;
 
 	std::vector<HttpCookie*> cookies_;
 	bool cookies_inited_;
@@ -360,6 +414,7 @@ private:
 	std::vector<HTTP_PARAM*> params_;
 	http_request_t request_type_;
 	http_mime* mime_;
+	string* body_;
 	json* json_;
 	xml* xml_;
 
@@ -371,3 +426,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

@@ -3,6 +3,7 @@
 #if defined(_WIN32) || defined(_WIN64)
 #include <WinSock2.h>
 #endif
+#include <string>
 #include "istream.hpp"
 #include "ostream.hpp"
 
@@ -40,9 +41,14 @@ public:
 
 	/**
 	 * 连接远程服务器并打开网络连接流
-	 * @param addr {const char*} 服务器地址, 若连接域套接口服务器(仅UNIX平台),
-	 *  域套接地址：/tmp/test.sock; 如果连接一个TCP服务器，则地址格式为:
-	 *  [${local_ip}@]${remote_addr}, 如: 60.28.250.199@www.sina.com:80,
+	 * @param addr {const char*} 服务器地址, 若连接域套接口服务器(UNIX平台),
+	 *  域套接地址：/tmp/test.sock，在Linux 平台下还可连接抽象域套接字，即
+	 *  abastract unix socket，为了与普通基于文件路径的unix域套接地址区别，
+	 *  在 acl 库中规定如果地址第一个字节为 @，则认为是 Linux 抽象域套接字
+	 *  （abstract unix domain socket）不过需注意该功能仅有 Linux 平台支持,
+	 *  举例，如：@/tmp/test.sock；;
+	 *  如果连接一个TCP服务器，则地址格式为: [${local_ip}@]${remote_addr},
+	 *  如: 60.28.250.199@www.sina.com:80,
 	 *  意思是绑定本的网卡地址为: 60.28.250.199, 远程连接 www.sina.com 的 80,
 	 *  如果由OS自动绑定本地 IP 地址，则可以写为：www.sina.com:80
 	 * @param conn_timeout {int} 连接超时时间(秒)
@@ -53,7 +59,8 @@ public:
 
 	/**
 	 * 绑定本地 UDP 地址，创建 UDP 网络流对象
-	 * @param addr {const char*} 本机地址，格式：ip:port
+	 * @param addr {const char*} 本机地址，格式：ip:port；该地址也可以为
+	 *  UNIX 域套接字或 Linux 抽象域套接字（Linux abstract unix socket）
 	 * @param rw_timeout {int} 读写超时时间(秒)
 	 * @param flag {unsigned}
 	 * @return {bool} 绑定是否成功
@@ -210,7 +217,6 @@ public:
 
 	/**
 	 * 获得 TCP 套接字的 linger 值
-	 * @param fd {ACL_SOCKET} 套接字
 	 * @return {int} 返回 -1 表示未设置 linger 选项或内部出错，>= 0
 	 *  表示设置了 linger 选项且该值表示套接字关闭后该 TCP 连接在内核中
 	 *  维持 TIME_WAIT 状态的逗留时间(秒)
@@ -219,14 +225,12 @@ public:
 
 	/**
 	 * 获取 TCP 套接字的写缓冲区大小
-	 * @param fd {ACL_SOCKET} 套接字
 	 * @return {int} 缓冲区大小
 	 */
 	int get_tcp_sendbuf(void);
 
 	/**
 	 * 获取 TCP 套接字的读缓冲区大小
-	 * @param fd {ACL_SOCKET} 套接字
 	 * @return {int} 缓冲区大小
 	 */
 	int get_tcp_recvbuf(void);
@@ -239,10 +243,8 @@ public:
 	bool get_tcp_non_blocking(void);
 
 private:
-	char  dummy_[1];
-	char  peer_ip_[256];
-	char  local_ip_[256];
-	const char* get_ip(const char* addr, char* buf, size_t size);
+	std::string ipbuf_;
+	const char* get_ip(const char* addr, std::string& out);
 };
 
 } // namespace acl

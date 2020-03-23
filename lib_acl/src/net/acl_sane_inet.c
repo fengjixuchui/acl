@@ -179,6 +179,10 @@ size_t acl_inet_ntop(const struct sockaddr *sa, char *buf, size_t size)
 		return sizeof(struct sockaddr_in);
 #ifdef AF_INET6
 	} else if (sa->sa_family == AF_INET6) {
+#ifndef IF_NAMESIZE
+#define IF_NAMESIZE 256
+#endif
+
 		int    port;
 		char   ip[IPLEN], ifname[IF_NAMESIZE], *ptr;
 		struct sockaddr_in6 *in6 = (struct sockaddr_in6*) sa;
@@ -187,10 +191,15 @@ size_t acl_inet_ntop(const struct sockaddr *sa, char *buf, size_t size)
 			return 0;
 		}
 
-		ptr = if_indextoname(in6->sin6_scope_id, ifname);
+#if defined(ACL_UNIX) || (defined(ACL_WINDOWS) && _MSC_VER >= 1600)
+		ptr = (char*) if_indextoname(in6->sin6_scope_id, ifname);
 		if (ptr == NULL) {
 			ifname[0] = 0;
 		}
+# else
+		ifname[0] = 0;
+#endif
+
 		port = ntohs(in6->sin6_port);
 		if (port <= 0) {
 			if (strcmp(ip, "::1") == 0) {
@@ -282,11 +291,13 @@ size_t acl_inet_pton(int af, const char *src, struct sockaddr *dst)
 
 		in6->sin6_family = AF_INET6;
 		in6->sin6_port   = htons(port);
+#if defined(ACL_UNIX) || (defined(ACL_WINDOWS) && _MSC_VER >= 1600)
 		if (ptr && *ptr && !(in6->sin6_scope_id = if_nametoindex(ptr))) {
 			acl_msg_error("%s(%d): if_nametoindex error %s",
 				__FUNCTION__, __LINE__, acl_last_serror());
 			return 0;
 		}
+#endif
 
 		if (inet_pton(af, buf, &in6->sin6_addr) == 0) {
 			return 0;

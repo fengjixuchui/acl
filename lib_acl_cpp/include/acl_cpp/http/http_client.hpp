@@ -1,5 +1,6 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 
 struct HTTP_HDR;
 struct HTTP_HDR_RES;
@@ -21,7 +22,7 @@ class http_header;
  * 到 HTTP 客户端连接时创建一个对应的 HTTP 客户端流对象
  * 该客户端流对象可以支持长连接
  */
-class ACL_CPP_API http_client
+class ACL_CPP_API http_client : public noncopyable
 {
 public:
 	/**
@@ -168,10 +169,33 @@ public:
 #endif
 
 	/**
+	 * 获得 HTTP 头中的版本号
+	 * @param major {unsigned&} 将存放主版本号
+	 * @param minor {unsigned&} 将存放次版本号
+	 * @return {bool} 是否成功获得了版本号
+	 */
+	bool get_version(unsigned& major, unsigned& minor) const;
+
+	/**
 	 * HTTP 数据流(请求流或响应流是否允许保持长连接)
 	 * @return {bool}
 	 */
+	bool is_keep_alive(void) const;
 	bool keep_alive(void) const;
+
+	/**
+	 * 当本对象为客户端请求对象时，本方法用来判断服务端返回的 HTTP 头中
+	 * 是否允许保持长连接
+	 * @return {bool}
+	 */
+	bool is_server_keep_alive(void) const;
+
+	/**
+	 * 当本对象为服务端响应对象时，本方法用来判断客户端请求的 HTTP 头中
+	 * 是否允许保持长连接
+	 * @return {bool}
+	 */
+	bool is_client_keep_alive(void) const;
 
 	/**
 	 * 获得 HTTP 请求头或响应头中某个字段名的字段值
@@ -191,7 +215,7 @@ public:
 	 * @param name {const char*} HTTP 头的字段名，如：Content-Length，
 	 *   该字段不区分大小写
 	 * @param value {const char*} 该头部字段的值
-	 * @param force {bool} 如果该头部字段不存在是否需要强制添加
+	 * @param force_add {bool} 如果该头部字段不存在是否需要强制添加
 	 * @return {bool} 返回 false 表示输入出错，或头部字段名不存在且参数
 	 *  force_add 为 false
 	 */
@@ -286,7 +310,7 @@ public:
 	 *  通过该指针返回的数据值永远 >= 0
 	 * @return {int} 返回值含义如下：(应用需要通过 body_finish 函数和
 	 *       disconnected 函数来判断数据体是否读完或连接是否关闭)
-	 *  > 0: 表示已经读到的数据，并且数据还未读完
+	 *  > 0: 表示已经读到的数据，并且数据还未读完，需要继续读
 	 *  == 0: 有两种原因会返回 0，当数据读完时返回 0，可调用 body_finish
 	 *        函数判断是否已经读完 HTTP 响应数据；当读到压缩数据的尾部时，
 	 *        因压缩数据的8字节尾部数据是控制字段，所以不做为数据体返回，
@@ -305,7 +329,7 @@ public:
 	 * @param buf {char*} 存储数据体的缓冲区，不能为空
 	 * @param size {size_t} buf 缓冲区长度
 	 * @return {int} 返回值含义如下：
-	 *  > 0: 表示已经读到的数据，并且数据还未读完
+	 *  > 0: 表示已经读到的数据，并且数据还未读完，需要继续读
 	 *  == 0: 表示已经读完 HTTP 响应体数据，但连接并未关闭
 	 *  < 0: 表示连接关闭
 	 */

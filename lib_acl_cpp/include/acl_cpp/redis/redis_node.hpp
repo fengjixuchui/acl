@@ -3,6 +3,9 @@
 #include <vector>
 #include <utility>
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
+
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
 
 namespace acl
 {
@@ -12,7 +15,7 @@ namespace acl
  * this class is mainly used for redis_cluster command class to
  * get some information about the nodes in redis cluster
  */
-class ACL_CPP_API redis_node
+class ACL_CPP_API redis_node : public noncopyable
 {
 public:
 	/**
@@ -261,3 +264,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

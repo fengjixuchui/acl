@@ -21,6 +21,7 @@ extern "C" {
 
 #include "../stdlib/acl_stdlib.h"
 #include "../event/acl_events.h"
+#include "../net/acl_netdb.h"
 
 /*------------------------------- 数据结构类型定义 ---------------------------*/
 
@@ -93,6 +94,27 @@ typedef int (*ACL_AIO_LISTEN_FN)(ACL_ASTREAM *sstream, void *context);
  * @return {int} 若调用该函数返回-1则需要关闭该异步连接流
  */
 typedef int (*ACL_AIO_CONNECT_FN)(ACL_ASTREAM *cstream, void *context);
+
+typedef struct ACL_ASTREAM_CTX ACL_ASTREAM_CTX;
+
+ACL_API int acl_astream_get_status(const ACL_ASTREAM_CTX *ctx);
+#define ACL_ASTREAM_STATUS_INVALID		-1
+#define ACL_ASTREAM_STATUS_OK			0
+#define ACL_ASTREAM_STATUS_NS_ERROR		1
+#define ACL_ASTREAM_STATUS_CONNECT_ERROR	2
+#define ACL_ASTREAM_STATUS_CONNECT_TIMEOUT	3
+
+ACL_API const ACL_SOCKADDR *acl_astream_get_ns_addr(const ACL_ASTREAM_CTX *ctx);
+ACL_API const ACL_SOCKADDR *acl_astream_get_serv_addr(const ACL_ASTREAM_CTX *ctx);
+ACL_API ACL_ASTREAM *acl_astream_get_conn(const ACL_ASTREAM_CTX *ctx);
+ACL_API void *acl_astream_get_ctx(const ACL_ASTREAM_CTX *ctx);
+
+/**
+ * 异步连接远程服务器时的回调函数定义，该类型由 acl_aio_connect_addr() 使用
+ * @param ctx {ACL_ASTREAM_CTX*} 回调函数的参数，可以由 acl_astream_get_xxx
+ *  获得该对象中包含的对象指针
+ */
+typedef int (*ACL_AIO_CONNECT_ADDR_FN)(const ACL_ASTREAM_CTX *ctx);
 
 /**
  * “读、写、监听”超时的回调函数指针
@@ -205,6 +227,38 @@ ACL_API ACL_AIO *acl_aio_create2(int event_mode, unsigned int nMsg);
  * @return {ACL_AIO *}
  */
 ACL_API ACL_AIO *acl_aio_create3(ACL_EVENT *event);
+
+/**
+ * 获得本 aio 句柄所绑定的 DNS 查询对象
+ * @param aio {ACL_AIO*}
+ * @return {ACL_DNS*} 返回 NULL 表示没有绑定 DNS 查询对象，当返回值非 NULL 时，应用可
+ *  以直接将返回值转换为 ACL_DNS 对象（XXX：因为循环引用头文件的问题，所以暂且如此）
+ */
+ACL_API void *acl_aio_dns(ACL_AIO *aio);
+
+/**
+ * 设置 DNS 服务器地址列表，只有设置了 DNS 服务器地址，内部才会支持域名解析并
+ * 异步连接服务器地址
+ * @param aio {ACL_AIO*}
+ * @param dns_list {const char*} DNS 服务器地址列表，格式：ip1:port,ip2:port...
+ * @param timeout {int} 域名解析超时时间（秒）
+ * @return {int} 设置 DNS 查询对象是否成功，0 表示成功，-1 表示失败，失败原因
+ *  有：无法创建 UDP 套接字或绑定 UDP 套接字失败
+ */
+ACL_API int acl_aio_set_dns(ACL_AIO *aio, const char *dns_list, int timeout);
+
+/**
+ * 删除 DNS 服务器地址列表
+ * @param aio {ACL_AIO*}
+ * @param dns_list {const char*} DNS 服务器地址列表，格式：ip1:port,ip2:port...
+ */
+ACL_API void acl_aio_del_dns(ACL_AIO *aio, const char *dns_list);
+
+/**
+ * 将 aio 句柄中绑定的 DNS 地址清理掉
+ * @param aio {ACL_AIO*}
+ */
+ACL_API void acl_aio_clear_dns(ACL_AIO *aio);
 
 /**
  * 释放一个异步通信异步框架实例句柄，同时会释放掉非空的 aio->event 对象
@@ -605,19 +659,21 @@ ACL_API ACL_VSTRING *acl_aio_gets_nonl_peek(ACL_ASTREAM *astream);
 /**
  * 尝试性从异步流中读取数据，如果有数据则返回没有则返回空
  * @param astream {ACL_ASTREM*} 异步流对象
+ * @param count {int*} 函数返回后将存放本次读到的数据长度，返回值永远 >= 0
  * @return {ACL_VSTRING*} 若读到了数据则返回的缓冲区非空(使用者用完此缓冲区后
  *  需要调用 ACL_VSTRING_RESET(s) 清空此缓冲区), 否则返回空
  */
-ACL_API ACL_VSTRING *acl_aio_read_peek(ACL_ASTREAM *astream);
+ACL_API ACL_VSTRING *acl_aio_read_peek(ACL_ASTREAM *astream, int *count);
 
 /**
  * 尝试性从异步流中读给定长度的数据，如果读到的数据满足要求则返回缓冲区
  * @param astream {ACL_ASTREM*} 异步流对象
- * @param count {int} 要求读到的数据长度
+ * @param count {int*} 要求读到的数据长度，函数返回后将存放本次读到的字节数，
+ *  存放的值永远 >= 0
  * @return {ACL_VSTRING*} 若读到规定长度则返回非空缓冲区(使用者用完此缓冲区后
  *  需要调用 ACL_VSTRING_RESET(s) 清空此缓冲区), 否则返回空
  */
-ACL_API ACL_VSTRING *acl_aio_readn_peek(ACL_ASTREAM *astream, int count);
+ACL_API ACL_VSTRING *acl_aio_readn_peek(ACL_ASTREAM *astream, int *count);
 
 /**
  * 设置异步流为读监听状态，当该流可读时则调用用户的回调函数
@@ -756,11 +812,25 @@ ACL_API void acl_aio_listen(ACL_ASTREAM *astream);
 /**
  * 异步连接一个远程服务器, 当连接流出错、超时或连接成功时将触发事件通知过程.
  * @param aio {ACL_AIO*} 异步框架引擎句柄
- * @param saddr {const char*} 远程服务器地址, 格式: ip:port, 如: 192.168.0.1:80
+ * @param addr {const char*} 远程服务器地址, 格式: ip:port, 如: 192.168.0.1:80
  * @param timeout {int} 连接超时的时间值，单位为秒
  * @return {ACL_ASTREAM*} 创建异步连接过程是否成功
  */
 ACL_API ACL_ASTREAM *acl_aio_connect(ACL_AIO *aio, const char *addr, int timeout);
+
+/**
+ * 异步连接一个远程服务器，给定的地址可以是域名，以区别于 acl_aio_connect 函数，
+ * 使用本函数的首要条件是必须通过 acl_aio_set_dns 设置的域名服务器的地址
+ * @param aio {ACL_AIO*} 异步框架引擎句柄
+ * @param addr {const char*} 服务器地址，格式：domain:port，如：www.sina.com:80
+ * @param timeout {int} 连接超时的时间值，单位为秒
+ * @param callback {ACL_AIO_CONNECT_ADDR_FN}
+ * @param context {void*} 传递给 callback 回调函数的参数
+ * @return {int} 返回 0 表示开始异步域名解析及异步连接过程，返回 < 0 表示传入的
+ *  参数有误或在创建 ACL_AIO 句柄后没有通过 acl_aio_set_dns 函数设置域名服务器
+ */
+ACL_API int acl_aio_connect_addr(ACL_AIO *aio, const char *addr, int timeout,
+		ACL_AIO_CONNECT_ADDR_FN callback, void *context);
 
 /*---------------------------- 其它通用异步操作接口 --------------------------*/
 
@@ -826,7 +896,7 @@ ACL_API acl_int64 acl_aio_cancel_timer(ACL_AIO *aio,
  * @param context {void*} timer_fn 的参数之一.
  * @param onoff {int} 是否重复定时器任务
  */
-ACL_API void acl_aio_keep_timer(ACL_AIO *aio, ACL_EVENT_NOTIFY_TIME callback,
+ACL_API void acl_aio_keep_timer(ACL_AIO *aio, ACL_EVENT_NOTIFY_TIME timer_fn,
 		void *context, int onoff);
 
 /**
@@ -836,7 +906,7 @@ ACL_API void acl_aio_keep_timer(ACL_AIO *aio, ACL_EVENT_NOTIFY_TIME callback,
  * @param context {void*} timer_fn 的参数之一.
  * @return {int} !0 表示所设置的定时器都处于重复使用状态
  */
-ACL_API int acl_aio_timer_ifkeep(ACL_AIO *aio, ACL_EVENT_NOTIFY_TIME callback,
+ACL_API int acl_aio_timer_ifkeep(ACL_AIO *aio, ACL_EVENT_NOTIFY_TIME timer_fn,
 		void *context);
 
 #ifdef	__cplusplus

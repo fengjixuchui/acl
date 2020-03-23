@@ -15,8 +15,8 @@ class string;
 class ACL_CPP_API istream : virtual public stream
 {
 public:
-	istream() {}
-	virtual ~istream() {}
+	istream(void) {}
+	virtual ~istream(void) {}
 
 	/**
 	 * 从输入流中读数据
@@ -182,6 +182,16 @@ public:
 	 */
 	bool read_peek(string& buf, bool clear = false);
 	bool read_peek(string* buf, bool clear = false);
+
+	/**
+	 * 尝试性从输入流中读取数据
+	 * @param buf {void*} 缓冲区
+	 * @param size {size_t} buf 缓冲区大小
+	 * @return {int} 返回 -1 表示读出错或关闭，> 0 表示读到的数据长度，
+	 *  如果返回 0 表示本次没有读到数据，可以继续读，当返回值 < 0 时，
+	 *  可通过 eof() 判断流是否应该关闭
+	 */
+	int read_peek(void* buf, size_t size);
 
 	/**
 	 * 尝试性从输入流中读取指定长度的数据

@@ -8,6 +8,8 @@
 
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 #include "zdb_private.h"
 
 typedef struct {
@@ -28,6 +30,7 @@ static void free_tls(void *ptr)
 }
 
 static void *__tls = NULL;
+#ifndef HAVE_NO_ATEXIT
 static void main_free_tls(void)
 {
 	if (__tls) {
@@ -37,13 +40,16 @@ static void main_free_tls(void)
 		__tls = NULL;
 	}
 }
+#endif
 
 static acl_pthread_key_t  once_key;
 static void once_init(void)
 {
 	if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 		acl_pthread_key_create(&once_key, dummy);
+#ifndef HAVE_NO_ATEXIT
 		atexit(main_free_tls);
+#endif
 	} else
 		acl_pthread_key_create(&once_key, free_tls);
 }
@@ -213,6 +219,7 @@ static void free_tls2(void *ptr)
 }
 
 static void *__tls2 = NULL;
+#ifndef HAVE_NO_ATEXIT
 static void main_free_tls2(void)
 {
 	if (__tls2) {
@@ -220,13 +227,16 @@ static void main_free_tls2(void)
 		__tls2 = NULL;
 	}
 }
+#endif
 
 static acl_pthread_key_t  once_key2;
 static void once_init2(void)
 {
 	if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 		acl_pthread_key_create(&once_key2, dummy2);
+#ifndef HAVE_NO_ATEXIT
 		atexit(main_free_tls2);
+#endif
 	} else
 		acl_pthread_key_create(&once_key2, free_tls2);
 }
@@ -382,3 +392,5 @@ void zdb_dat_iter_set(ZDB_DAT_STORE *store, int read_data)
 		((ZDB_STORE*) store)->iter_next = (STORE_ITER) hdr_iter_next;
 	}
 }
+
+#endif /* ACL_CLIENT_ONLY */

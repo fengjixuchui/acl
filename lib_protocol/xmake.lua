@@ -11,11 +11,11 @@ target("protocol")
     add_files("src/**.c")
 
     -- add include directories
-    add_includedirs("src", "include")
+    add_includedirs("src")
+    add_includedirs("include", {public = true})
 
     -- add headers
-    add_headers("include/(**.h)")
-    set_headerdir("$(buildir)/include/protocol")
+    add_headerfiles("include/(**.h)")
 
 
 

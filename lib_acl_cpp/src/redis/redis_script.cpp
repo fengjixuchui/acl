@@ -7,6 +7,8 @@
 #include "acl_cpp/redis/redis_script.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -229,8 +231,7 @@ int redis_script::eval_status(const char* cmd, const char* script,
 	const char* status;
 	out.clear();
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		rr = children[i];
 		status = rr->get_status();
 		if (status != NULL && strcasecmp(status, success) == 0)
@@ -265,8 +266,7 @@ int redis_script::eval_number(const char* cmd, const char* script,
 	out.clear();
 	status.clear();
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		rr = children[i];
 		number = rr->get_integer(&success);
 		out.push_back(number);
@@ -299,8 +299,7 @@ long long int redis_script::eval_number64(const char* cmd, const char* script,
 	long long int number;
 	bool success;
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		rr = children[i];
 		number = rr->get_integer64(&success);
 		out.push_back(number);
@@ -330,8 +329,7 @@ int redis_script::eval_strings(const char* cmd, const char* script,
 	const redis_result* rr;
 	string buf;
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		rr = children[i];
 		rr->argv_to_string(buf);
 		out.push_back(buf);
@@ -393,15 +391,13 @@ const redis_result* redis_script::eval_cmd(const char* cmd,
 	size_t i = 3;
 	std::vector<string>::const_iterator cit;
 
-	for (cit = keys.begin(); cit != keys.end(); ++cit)
-	{
+	for (cit = keys.begin(); cit != keys.end(); ++cit) {
 		argv[i] = (*cit).c_str();
 		lens[i] = (*cit).length();
 		i++;
 	}
 
-	for (cit = args.begin(); cit != args.end(); ++cit)
-	{
+	for (cit = args.begin(); cit != args.end(); ++cit) {
 		argv[i] = (*cit).c_str();
 		lens[i] = (*cit).length();
 		i++;
@@ -440,15 +436,13 @@ const redis_result* redis_script::eval_cmd(const char* cmd,
 	size_t i = 3;
 	std::vector<const char*>::const_iterator cit;
 
-	for (cit = keys.begin(); cit != keys.end(); ++cit)
-	{
+	for (cit = keys.begin(); cit != keys.end(); ++cit) {
 		argv[i] = *cit;
 		lens[i] = strlen(argv[i]);
 		i++;
 	}
 
-	for (cit = args.begin(); cit != args.end(); ++cit)
-	{
+	for (cit = args.begin(); cit != args.end(); ++cit) {
 		argv[i] = *cit;
 		lens[i] = strlen(argv[i]);
 		i++;
@@ -531,3 +525,5 @@ bool redis_script::script_kill()
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

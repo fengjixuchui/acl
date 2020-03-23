@@ -95,6 +95,7 @@ static const XML_SPEC __tab[] = {
 
 static ACL_TOKEN *__token_tree = NULL;
 
+#ifndef HAVE_NO_ATEXIT
 static void xml_decode_free(void)
 {
 	if (__token_tree) {
@@ -102,6 +103,7 @@ static void xml_decode_free(void)
 		__token_tree = NULL;
 	}
 }
+#endif
 
 static void xml_decode_init(void)
 {
@@ -113,8 +115,10 @@ static void xml_decode_init(void)
 		acl_token_tree_add(__token_tree, __tab[i].txt,
 			ACL_TOKEN_F_STOP, &__tab[i]);
 
+#ifndef HAVE_NO_ATEXIT
 	/* 进程退出时调用 html_decode_free 释放内存资源 */
 	atexit(xml_decode_free);
+#endif
 }
 
 static acl_pthread_once_t __token_once = ACL_PTHREAD_ONCE_INIT;
@@ -189,6 +193,8 @@ int acl_xml_decode(const char *in, ACL_VSTRING *out)
 }
 
 /*--------------------------------------------------------------------------*/
+
+#ifndef ACL_CLIENT_ONLY
 
 size_t acl_xml_encode2(const char **in, size_t ilen, char *out, size_t olen)
 {
@@ -352,3 +358,5 @@ const char *acl_xml_decode2(const char *in, char **out, size_t *size)
 	*out += 1;
 	return ptr;
 }
+
+#endif /* ACL_CLIENT_ONLY */

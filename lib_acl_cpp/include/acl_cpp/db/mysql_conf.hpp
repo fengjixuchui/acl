@@ -1,6 +1,8 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl {
 
 class ACL_CPP_API mysql_conf
@@ -67,7 +69,7 @@ public:
 
 	/**
 	 * 设置读取数据库结果的超时时间
-	 * @param int {timeout}
+	 * @param timeout {int}
 	 * @return {mysql_conf&}
 	 */
 	mysql_conf& set_rw_timeout(int timeout);
@@ -149,3 +151,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

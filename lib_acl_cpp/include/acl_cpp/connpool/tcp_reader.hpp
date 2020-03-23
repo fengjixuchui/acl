@@ -1,16 +1,5 @@
-/**
- * Copyright (C) 2017-2018
- * All rights reserved.
- *
- * AUTHOR(S)
- *   Zheng Shuxin
- *   E-mail: zhengshuxin@qiyi.com
- * 
- * VERSION
- *   Tue 08 Aug 2017 01:57:39 PM CST
- */
-
 #pragma once
+#include "../stdlib/noncopyable.hpp"
 
 namespace acl
 {
@@ -21,7 +10,7 @@ class string;
 /**
  * tcp ipc 通信接收类，内部会自动读取完事的数据包
  */
-class ACL_CPP_API tcp_reader
+class ACL_CPP_API tcp_reader : public noncopyable
 {
 public:
 	tcp_reader(socket_stream& conn);

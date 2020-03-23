@@ -1,7 +1,7 @@
 #include "stdafx.h"
 #include "redis_thread.h"
 
-#define	STACK_SIZE 32000
+#define	STACK_SIZE 256000
 
 static void usage(const char *procname)
 {

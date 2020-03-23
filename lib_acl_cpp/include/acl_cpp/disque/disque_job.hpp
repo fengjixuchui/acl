@@ -1,7 +1,10 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
 #include <vector>
+#include "../stdlib/noncopyable.hpp"
 #include "../stdlib/string.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 namespace acl
 {
@@ -11,7 +14,7 @@ class redis_result;
 /**
  * 在从 disque 队列中获得的任务信息的类
  */
-class ACL_CPP_API disque_job
+class ACL_CPP_API disque_job : public noncopyable
 {
 public:
 	disque_job();
@@ -126,3 +129,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

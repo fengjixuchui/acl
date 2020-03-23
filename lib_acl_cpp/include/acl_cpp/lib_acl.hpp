@@ -75,8 +75,12 @@
 #include "stream/stdin_stream.hpp"
 #include "stream/stdout_stream.hpp"
 
+#include "stream/sslbase_conf.hpp"
+#include "stream/sslbase_io.hpp"
 #include "stream/polarssl_conf.hpp"
 #include "stream/polarssl_io.hpp"
+#include "stream/mbedtls_conf.hpp"
+#include "stream/mbedtls_io.hpp"
 
 #include "ipc/ipc_client.hpp"
 #include "ipc/ipc_server.hpp"
@@ -101,6 +105,7 @@
 #include "http/http_request_manager.hpp"
 #include "http/websocket.hpp"
 #include "http/WebSocketServlet.hpp"
+#include "http/http_aclient.hpp"
 
 #include "db/query.hpp"
 #include "db/mysql_conf.hpp"

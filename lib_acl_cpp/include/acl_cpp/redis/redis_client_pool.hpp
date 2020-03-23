@@ -2,8 +2,12 @@
 #include "../acl_cpp_define.hpp"
 #include "../connpool/connect_pool.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
+
+class sslbase_conf;
 
 /**
  * redis 连接池类，该类继承于 connect_pool，在 connect_pool 定义了通用的有关
@@ -29,6 +33,15 @@ public:
 	redis_client_pool(const char* addr, size_t count, size_t idx = 0);
 
 	virtual ~redis_client_pool(void);
+
+	/**
+	 * 设置 SSL 通信方式下的配置句柄，内部缺省值为 NULL，如果设置了 SSL 连
+	 * 接配置对象，则内部切换成 SSL 通信方式
+	 * set SSL communication with Redis-server if ssl_conf not NULL
+	 * @param ssl_conf {sslbase_conf*}
+	 * @return {redis_client_pool&}
+	 */
+	redis_client_pool& set_ssl_conf(sslbase_conf* ssl_conf);
 
 	/**
 	 * 设置连接 redis 服务器的连接密码
@@ -67,6 +80,9 @@ protected:
 private:
 	char* pass_;
 	int   dbnum_;
+	sslbase_conf* ssl_conf_;
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

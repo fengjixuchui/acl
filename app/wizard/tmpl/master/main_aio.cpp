@@ -16,26 +16,24 @@ int main(int argc, char* argv[])
 
 	// 开始运行
 
-	if (argc >= 2 && strcmp(argv[1], "alone") == 0)
-	{
+	if (argc >= 2 && strcmp(argv[1], "alone") == 0) {
 		// 日志输出至标准输出
 		acl::log::stdout_open(true);
 
-		// 监听的地址列表，格式：ip:port1,ip:port2,...
-		const char* addrs = ":8888";
+		// 监听的地址列表，格式：ip|port1,ip|port2,...
+		const char* addrs = "|8888";
 		printf("listen on: %s\r\n", addrs);
 
 		// 单独运行方式
-		if (argc >= 3)
+		if (argc >= 3) {
 			ms.run_alone(addrs, argv[2], acl::ENGINE_SELECT); 
-		else
+		} else {
 			ms.run_alone(addrs, NULL, acl::ENGINE_SELECT);
+		}
 
 		printf("Enter any key to exit now\r\n");
 		getchar();
-	}
-	else
-	{
+	} else {
 #ifdef	WIN32
 		// 日志输出至标准输出
 		acl::log::stdout_open(true);

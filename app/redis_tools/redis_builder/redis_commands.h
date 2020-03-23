@@ -33,9 +33,10 @@ private:
 	void show_commands(void);
 	bool check(const char* command);
 
+	bool parse(acl::string& line, std::vector<acl::string>& out);
 	void set_addr(const char* in, acl::string& out);
 	void getline(acl::string& buf, const char* prompt = NULL);
-	void create_cluster();
+	void create_cluster(void);
 	void help(void);
 	void set_server(const std::vector<acl::string>& tokens);
 	void show_nodes(void);
@@ -62,8 +63,15 @@ private:
 	void zset_get(const char* key, size_t max);
 
 	void pattern_remove(const std::vector<acl::string>& tokens);
-	int pattern_remove(const char* addr, const char* pattern);
-	int remove(const std::vector<acl::string>& keys);
+	long long pattern_remove(const char* addr, const char* pattern,
+		int cocurrent);
+	void remove(const std::vector<acl::string>& keys,
+		acl::atomic_long& deleted, acl::atomic_long& error,
+		acl::atomic_long& notfound);
+	void parallel_remove(int cocurrent,
+		const std::vector<acl::string>& keys,
+		acl::atomic_long& deleted, acl::atomic_long& error,
+		acl::atomic_long& notfound);
 
 	void check_type(const std::vector<acl::string>& tokens);
 	void check_ttl(const std::vector<acl::string>& tokens);

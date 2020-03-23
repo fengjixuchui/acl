@@ -109,7 +109,9 @@ static void thread_cache_free(ACL_ARRAY *pool)
 static acl_pthread_key_t cache_key = (acl_pthread_key_t) -1;
 
 #ifndef	USE_TLS_EX
+
 static ACL_ARRAY *cache_pool = NULL;
+# ifndef HAVE_NO_ATEXIT
 static void main_cache_free(void)
 {
 	if (cache_pool) {
@@ -117,6 +119,7 @@ static void main_cache_free(void)
 		cache_pool = NULL;
 	}
 }
+# endif
 
 static acl_pthread_once_t once_control = ACL_PTHREAD_ONCE_INIT;
 static void cache_init(void)
@@ -159,10 +162,12 @@ HTTP_HDR_REQ *http_hdr_req_new(void)
 	if (pool == NULL) {
 		pool = acl_array_create(100);
 		acl_pthread_setspecific(cache_key, pool);
+#ifndef HAVE_NO_ATEXIT
 		if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 			cache_pool = pool;
 			atexit(main_cache_free);
 		}
+#endif
 	}
 	hh = (HTTP_HDR_REQ*) pool->pop_back(pool);
 	if (hh) {
@@ -184,9 +189,10 @@ HTTP_HDR_REQ *http_hdr_req_create(const char *url,
 	HTTP_HDR_REQ *hdr_req;
 	ACL_VSTRING *req_line = acl_vstring_alloc(256);
 	HTTP_HDR_ENTRY *entry;
+	char proto[32];
 	const char *ptr;
 	static char *__user_agent = "Mozilla/5.0 (Windows; U; Windows NT 5.0"
-		"; zh-CN; rv:1.9.0.3) Gecko/2008092417 ACL/3.0.6";
+		"; zh-CN; rv:1.9.0.3) Gecko/2008092417 ACL/3.5.1";
 
 	if (url == NULL || *url == 0) {
 		acl_msg_error("%s(%d): url invalid", myname, __LINE__);
@@ -204,10 +210,16 @@ HTTP_HDR_REQ *http_hdr_req_create(const char *url,
 	acl_vstring_strcpy(req_line, method);
 	acl_vstring_strcat(req_line, " ");
 
-	if (strncasecmp(url, "http://", sizeof("http://") - 1) == 0)
+	if (strncasecmp(url, "http://", sizeof("http://") - 1) == 0) {
 		url += sizeof("http://") - 1;
-	else if (strncasecmp(url, "https://", sizeof("https://") - 1) == 0)
+		ACL_SAFE_STRNCPY(proto, "http", sizeof(proto));
+	} else if (strncasecmp(url, "https://", sizeof("https://") - 1) == 0) {
 		url += sizeof("https://") -1;
+		ACL_SAFE_STRNCPY(proto, "https", sizeof(proto));
+	} else {
+		ACL_SAFE_STRNCPY(proto, "http", sizeof(proto));
+	}
+
 	ptr = strchr(url, '/');
 	if (ptr)
 		acl_vstring_strcat(req_line, ptr);
@@ -235,6 +247,8 @@ HTTP_HDR_REQ *http_hdr_req_create(const char *url,
 		http_hdr_req_free(hdr_req);
 		return NULL;
 	}
+
+	ACL_SAFE_STRNCPY(hdr_req->hdr.proto, proto, sizeof(hdr_req->hdr.proto));
 
 	hdr_req->host[0] = 0;
 	__get_host_from_url(hdr_req->host, sizeof(hdr_req->host), url);
@@ -905,14 +919,14 @@ HTTP_HDR_REQ *http_hdr_req_rewrite(const HTTP_HDR_REQ *hh, const char *url)
 
 /* 取得HTTP请求的方法 */
 
-const char *http_hdr_req_method(HTTP_HDR_REQ *hh)
+const char *http_hdr_req_method(const HTTP_HDR_REQ *hh)
 {
 	return hh->method;
 }
 
 /* 获取请求URL中某个请求字段的数据, 如取: /cgi-bin/n1=v1&n2=v2 中的 n2的值v2 */
 
-const char *http_hdr_req_param(HTTP_HDR_REQ *hh, const char *name)
+const char *http_hdr_req_param(const HTTP_HDR_REQ *hh, const char *name)
 {
 	const char *myname = "http_hdr_req_get";
 
@@ -928,7 +942,7 @@ const char *http_hdr_req_param(HTTP_HDR_REQ *hh, const char *name)
 	return acl_htable_find(hh->params_table, name);
 }
 
-const char *http_hdr_req_url_part(HTTP_HDR_REQ *hh)
+const char *http_hdr_req_url_part(const HTTP_HDR_REQ *hh)
 {
 	const char *myname = "http_hdr_req_url_part";
 
@@ -943,7 +957,7 @@ const char *http_hdr_req_url_part(HTTP_HDR_REQ *hh)
 	return acl_vstring_str(hh->url_part);
 }
 
-const char *http_hdr_req_url_path(HTTP_HDR_REQ *hh)
+const char *http_hdr_req_url_path(const HTTP_HDR_REQ *hh)
 {
 	if (ACL_VSTRING_LEN(hh->url_path) == 0)
 		return NULL;
@@ -951,7 +965,7 @@ const char *http_hdr_req_url_path(HTTP_HDR_REQ *hh)
 	return acl_vstring_str(hh->url_path);
 }
 
-const char *http_hdr_req_host(HTTP_HDR_REQ *hh)
+const char *http_hdr_req_host(const HTTP_HDR_REQ *hh)
 {
 	if (hh->host[0] != 0)
 		return hh->host;
@@ -964,7 +978,7 @@ static void free_vstring(ACL_VSTRING *buf)
 	acl_vstring_free(buf);
 }
 
-const char *http_hdr_req_url(HTTP_HDR_REQ *hh)
+const char *http_hdr_req_url(const HTTP_HDR_REQ *hh)
 {
 	static acl_pthread_key_t key = (acl_pthread_key_t) -1;
 	ACL_VSTRING *buf;
@@ -980,7 +994,7 @@ const char *http_hdr_req_url(HTTP_HDR_REQ *hh)
 	return acl_vstring_str(buf);
 }
 
-int http_hdr_req_range(HTTP_HDR_REQ *hdr_req, http_off_t *range_from,
+int http_hdr_req_range(const HTTP_HDR_REQ *hdr_req, http_off_t *range_from,
 	http_off_t *range_to)
 {
 	const char *myname = "http_hdr_req_range";

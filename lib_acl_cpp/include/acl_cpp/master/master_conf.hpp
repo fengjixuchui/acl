@@ -1,5 +1,8 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 struct ACL_XINETD_CFG_PARSER;
 struct ACL_CFG_INT_TABLE;
@@ -50,7 +53,7 @@ typedef struct master_int64_tbl
 
 class master_base;
 
-class ACL_CPP_API master_conf
+class ACL_CPP_API master_conf : public noncopyable
 {
 public:
 	master_conf();
@@ -127,3 +130,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

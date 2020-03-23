@@ -5,14 +5,16 @@
 #include "acl_cpp/beanstalk/beanstalk_pool.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_BEANSTALK_DISABLE)
+
 namespace acl {
 
-beanstalk_pool::beanstalk_pool()
+beanstalk_pool::beanstalk_pool(void)
 {
 	lock_ = NEW locker();
 }
 
-beanstalk_pool::~beanstalk_pool()
+beanstalk_pool::~beanstalk_pool(void)
 {
 	pool_it it = pool_.begin();
 	for (; it != pool_.end(); ++it)
@@ -30,15 +32,15 @@ beanstalk* beanstalk_pool::peek(const char* addr, bool clean_watch /* = true */,
 	pool_range r = pool_.equal_range(key);
 
 	pool_it it = r.first;
-	if (it != r.second)
-	{
+	if (it != r.second) {
 		beanstalk* client = it->second;
 		pool_.erase(it);
 		lock_->unlock();
 
 		acl_myfree(key);
-		if (clean_watch)
+		if (clean_watch) {
 			client->ignore_all();
+		}
 		return client;
 	}
 
@@ -50,13 +52,13 @@ beanstalk* beanstalk_pool::peek(const char* addr, bool clean_watch /* = true */,
 void beanstalk_pool::put(beanstalk* client, bool clean_watch /* = true */,
 	bool keep /* = true */)
 {
-	if (keep == false)
-	{
+	if (!keep) {
 		delete client;
 		return;
 	}
-	if (clean_watch)
+	if (clean_watch) {
 		client->ignore_all();
+	}
 
 	lock_->lock();
 	pool_.insert(std::make_pair(client->get_addr(), client));
@@ -64,3 +66,5 @@ void beanstalk_pool::put(beanstalk* client, bool clean_watch /* = true */,
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_BEANSTALK_DISABLE)

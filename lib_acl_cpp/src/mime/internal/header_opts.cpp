@@ -31,6 +31,9 @@
 /* System library. */
 
 #include "acl_stdafx.hpp"
+
+#if !defined(ACL_MIME_DISABLE)
+
 #include <ctype.h>
 
 /* Utility library. */
@@ -121,6 +124,7 @@ static void header_opts_init(ACL_HTABLE *header_hash)
 
 static HEADER_CTX *header_ctx = NULL;
 
+#ifndef HAVE_NO_ATEXIT
 static void header_ctx_free(void)
 {
 	if (header_ctx == NULL)
@@ -129,6 +133,7 @@ static void header_ctx_free(void)
 	acl_myfree(header_ctx);
 	header_ctx = NULL;
 }
+#endif
 
 static void header_opts_once(void)
 {
@@ -136,7 +141,9 @@ static void header_opts_once(void)
 	header_ctx->header_hash = acl_htable_create(HEADER_OPTS_SIZE, 0);
 	header_opts_init(header_ctx->header_hash);
 
+#ifndef HAVE_NO_ATEXIT
 	atexit(header_ctx_free);
+#endif
 }
 
 static acl_pthread_once_t __header_once = ACL_PTHREAD_ONCE_INIT;
@@ -223,3 +230,5 @@ void header_nv_free(HEADER_NV *header)
 		acl_myfree(header);
 	}
 }
+
+#endif // !defined(ACL_MIME_DISABLE)

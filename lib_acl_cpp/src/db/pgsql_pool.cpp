@@ -7,6 +7,8 @@
 #include "acl_cpp/db/pgsql_pool.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl
 {
 
@@ -16,14 +18,16 @@ pgsql_pool::pgsql_pool(const pgsql_conf& conf)
 	conf_ = NEW pgsql_conf(conf);
 }
 
-pgsql_pool::~pgsql_pool()
+pgsql_pool::~pgsql_pool(void)
 {
 	delete conf_;
 }
 
-connect_client* pgsql_pool::create_connect()
+connect_client* pgsql_pool::create_connect(void)
 {
 	return NEW db_pgsql(*conf_);
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

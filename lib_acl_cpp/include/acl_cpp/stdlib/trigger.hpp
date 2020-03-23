@@ -1,19 +1,8 @@
-/**
- * Copyright (C) 2017-2018 IQIYI
- * All rights reserved.
- *
- * AUTHOR(S)
- *   Zheng Shuxin
- *   E-mail: zhengshuxin@qiyi.com
- * 
- * VERSION
- *   Thu 07 Sep 2017 04:33:59 PM CST
- */
-
 #pragma once
 #include "../acl_cpp_define.hpp"
 #include <map>
 #include <vector>
+#include "noncopyable.hpp"
 #include "mbox.hpp"
 #include "util.hpp"
 #include "thread.hpp"
@@ -25,7 +14,7 @@ namespace acl {
  * 具有相同时间截的定时任务的集合
  */
 template <typename T>
-class trigger_item
+class trigger_item : public noncopyable
 {
 public:
 	typedef std::map<long long, trigger_item<T>*> trigger_items_t;
@@ -121,7 +110,7 @@ private:
  * };
  */
 template <typename T>
-class timer_trigger
+class timer_trigger : public noncopyable
 {
 public:
 	typedef std::map<long long, trigger_item<T>*> trigger_items_t;

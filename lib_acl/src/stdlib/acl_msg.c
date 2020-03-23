@@ -47,7 +47,7 @@ void acl_msg_register(ACL_MSG_OPEN_FN open_fn, ACL_MSG_CLOSE_FN close_fn,
 		return;
 
 	__open_fn = open_fn;
-	__close_fn = close_fn,
+    __close_fn = close_fn;
 	__write_fn = write_fn;
 	__msg_ctx = ctx;
 }
@@ -342,7 +342,7 @@ void acl_msg_fatal(const char *fmt,...)
 	va_end (ap);
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 
 void acl_msg_fatal2(const char *fmt, va_list ap)
@@ -369,7 +369,7 @@ void acl_msg_fatal2(const char *fmt, va_list ap)
 
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 
 void acl_msg_fatal_status(int status, const char *fmt,...)
@@ -400,7 +400,7 @@ void acl_msg_fatal_status(int status, const char *fmt,...)
 	va_end (ap);
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 
 void acl_msg_fatal_status2(int status, const char *fmt, va_list ap)
@@ -426,7 +426,7 @@ void acl_msg_fatal_status2(int status, const char *fmt, va_list ap)
 
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 
 void acl_msg_panic(const char *fmt,...)
@@ -458,7 +458,7 @@ void acl_msg_panic(const char *fmt,...)
 	va_end (ap);
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 
 void acl_msg_panic2(const char *fmt, va_list ap)
@@ -485,7 +485,7 @@ void acl_msg_panic2(const char *fmt, va_list ap)
 
 	acl_trace_info();
 	acl_close_log();
-	acl_assert(0);
+	abort();
 }
 #endif  /* USE_PRINTF_MACRO */
 
@@ -539,7 +539,6 @@ const char *acl_last_strerror(char *buffer, int size)
 }
 
 static acl_pthread_key_t __errbuf_key;
-static char *__main_buf = NULL;
 
 static void thread_free_buf(void *buf)
 {
@@ -547,11 +546,14 @@ static void thread_free_buf(void *buf)
 		acl_myfree(buf);
 }
 
+#if !defined(HAVE_NO_ATEXIT)
+static char *__main_buf = NULL;
 static void main_free_buf(void)
 {
 	if (__main_buf)
 		acl_myfree(__main_buf);
 }
+#endif
 
 static void thread_buf_init(void)
 {
@@ -573,13 +575,16 @@ const char *acl_last_serror(void)
 	buf = acl_pthread_getspecific(__errbuf_key);
 	if (buf == NULL) {
 		buf = acl_mymalloc(__buf_size);
-		acl_assert(acl_pthread_setspecific(__errbuf_key, buf) == 0);
+		if (acl_pthread_setspecific(__errbuf_key, buf) != 0)
+			abort();
+#if !defined(HAVE_NO_ATEXIT)
 		if ((unsigned long) acl_pthread_self()
 			== acl_main_thread_self())
 		{
 			__main_buf = buf;
 			atexit(main_free_buf);
 		}
+#endif
 	}
 	return acl_strerror(error, buf, __buf_size);
 }

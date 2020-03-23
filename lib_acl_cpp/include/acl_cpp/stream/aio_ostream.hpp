@@ -27,18 +27,18 @@ class aio_ostream;
 class ACL_CPP_API aio_timer_writer : public aio_timer_callback
 {
 public:
-	aio_timer_writer();
+	aio_timer_writer(void);
 
 	/**
 	 * 在 aio_istream 中调用此函数以释放类对象，子类应该实现该函数
 	 */
-	virtual void destroy()
+	virtual void destroy(void)
 	{
 		delete this;
 	}
 
 protected:
-	virtual ~aio_timer_writer();
+	virtual ~aio_timer_writer(void);
 
 	/**
 	 * 延迟读数据时的回调函数，从 aio_timer_callback 类中继承而来
@@ -64,6 +64,17 @@ public:
 	 * @param handle {aio_handle*} 异步事件引擎句柄
 	 */
 	aio_ostream(aio_handle* handle);
+
+	/**
+	 * 构造函数，创建异步写流对象，并 hook 写过程及关闭/超时过程
+	 * @param handle {aio_handle*} 异步事件引擎句柄
+	 * @param fd {int} 连接套接口句柄
+	 */
+#if defined(_WIN32) || defined(_WIN64)
+	aio_ostream(aio_handle* handle, SOCKET fd);
+#else
+	aio_ostream(aio_handle* handle, int fd);
+#endif
 
 	/**
 	 * 添加异可写时的回调类对象指针，如果该回调类对象已经存在，则只是
@@ -144,25 +155,24 @@ public:
 	 * 事件中移除，直到用户调用任何一个写操作时会自动打开异
 	 * 步写状态(此时该流会重新被异步引擎监控)
 	 */
-	void disable_write();
+	void disable_write(void);
 protected:
-	virtual ~aio_ostream();
+	virtual ~aio_ostream(void);
 
 	/**
 	 * 释放动态类对象的虚函数
 	 */
-	virtual void destroy();
+	virtual void destroy(void);
 
 	/**
 	 * hook 写过程
 	 */
-	void hook_write();
+	void hook_write(void);
 
 private:
 	friend class aio_timer_writer;
-	std::list<aio_timer_writer*> timer_writers_;
+	std::list<aio_timer_writer*>* timer_writers_;
 	std::list<AIO_CALLBACK*> write_callbacks_;
-	bool write_hooked_;
 
 	static int write_callback(ACL_ASTREAM*, void*);
 	static int write_wakup(ACL_ASTREAM*, void*);

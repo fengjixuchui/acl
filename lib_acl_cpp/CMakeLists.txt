@@ -8,18 +8,43 @@ endif()
 
 #string(TOUPPER ${CMAKE_SYSTEM_NAME} CMAKE_SYSTEM_NAME)
 if(CMAKE_SYSTEM_NAME MATCHES "Android")
+	# xxx: -flto can't be used on NDK with gnustl_shared
+	if (ANDROID_STL MATCHES "gnustl_shared")
+		add_definitions("-Oz -g -DHAVE_NO_ATEXIT")
+	else()
+		add_definitions("-O3 -flto")
+	endif()
+
 	add_definitions("-DANDROID")
+	add_definitions("-DACL_CPP_LOG_SKIP_FILE")
+	add_definitions("-Wno-unused-command-line-argument")
+	add_definitions("-Wno-invalid-source-encoding")
+	add_definitions("-fdata-sections -ffunction-sections")
+	string(APPEND CMAKE_CXX_FLAGS "-Qunused-arguments")
 	set(UNIX_OS true)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Linux")
+	add_definitions("-Wno-invalid-source-encoding")
+	add_definitions("-O2")
 	set(UNIX_OS true)
 elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
+	add_definitions("-O2")
 	set(UNIX_OS true)
 elseif(CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	add_definitions("-Wno-invalid-source-encoding")
+	add_definitions("-fdata-sections -ffunction-sections")
+	add_definitions("-flto")
+	add_definitions("-Os")
 	set(UNIX_OS true)
 elseif (CMAKE_SYSTEM_NAME MATCHES "Windows")
+	set(CMAKE_SHARED_LINKER_FLAGS "/DYNAMICBASE ws2_32.lib")
 	set(WIN_OS true)
 else()
 	message(FATAL_ERROR "unknown CMAKE_SYSTEM_NAME=${CMAKE_SYSTEM_NAME}")
+endif()
+
+if (ACL_CLIENT_ONLY MATCHES "YES")
+	message(STATUS "acl_cpp: ACL_CLIENT_ONLY been set")
+	add_definitions("-DACL_CLIENT_ONLY")
 endif()
 
 ##############################################################################
@@ -34,7 +59,7 @@ set(pgsql_include ${CMAKE_CURRENT_SOURCE_DIR}/../include/pgsql)
 set(sqlite_include ${CMAKE_CURRENT_SOURCE_DIR}/../include/sqlite)
 set(polarssl_include ${CMAKE_CURRENT_SOURCE_DIR}/../include)
 
-include_directories(
+include_directories(#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
 	${zlib_include}
 	${mysql_include}
 	${pgsql_include}
@@ -54,7 +79,6 @@ include_directories(
 set(src ${CMAKE_CURRENT_SOURCE_DIR}/src)
 set(sources
 	${src}
-	${src}/aliyun
 	${src}/beanstalk
 	${src}/connpool
 	${src}/db
@@ -85,7 +109,6 @@ endforeach()
 if (${UNIX_OS})
 	add_definitions(
 		"-W"
-		"-O2"
 		"-fPIC"
 		"-Wall"
 		"-Werror"
@@ -97,32 +120,73 @@ if (${UNIX_OS})
 		"-Wno-long-long"
 		"-Wuninitialized"
 		"-D_POSIX_PTHREAD_SEMANTICS"
-		"-DHAS_MYSQL_DLL"
-		"-DHAS_PGSQL_DLL"
-		"-DHAS_SQLITE_DLL"
-		"-DHAS_POLARSSL_DLL"
+		"-DACL_PREPARE_COMPILE"
 		"-Wno-unused-parameter"
 		"-fexceptions"
 		)
 
 	if (!CMAKE_SYSTEM_NAME MATCHES "FreeBSD")
-		add_definitions("-Wno-invalid-source-encoding"
-			"-Wno-unused-private-field"
+		add_definitions("-Wno-unused-private-field"
 			"-Wno-unused-const-variable"
 			)
 	endif()
 
-	if (CMAKE_BUILD_TYPE STREQUAL "")
-		set(CMAKE_BUILD_TYPE "DEBUG")
-	else()
-		string(TOUPPER CMAKE_BUILD_TYPE CMAKE_BUILD_TYPE)
-	endif()
-
-	if (CMAKE_BUILD_TYPE STREQUAL "RELEASE")
-		add_definitions("-O3")
-	else()
+	if (!CMAKE_BUILD_TYPE STREQUAL "RELEASE")
 		add_definitions("-g")
 	endif()
+
+	if (DISABLE_DB MATCHES "YES")
+		add_definitions("-DACL_DB_DISABLE")
+		message(STATUS "DB (mysql, pgsql, sqlite) was disabled!")
+	else()
+		if (HAS_MYSQL MATCHES "YES")
+			add_definitions("-DHAS_MYSQL")
+			message(STATUS "HAS_MYSQL been set, mysql enable!")
+		elseif (HAS_MYSQL_DLL MATCHES "YES")
+			add_definitions("-DHAS_MYSQL_DLL")
+			message(STATUS "HAS_MYSQL_DLL been set, mysql enable!")
+		else()
+			message(STATUS "mysql disable!")
+		endif()
+
+		if (HAS_PGSQL MATCHES "YES")
+			add_definitions("-DHAS_PGSQL")
+			message(STATUS "HAS_PGSQL been set, pgsql enable!")
+		elseif (HAS_PGSQL_DLL MATCHES "YES")
+			add_definitions("-DHAS_PGSQL_DLL")
+			message(STATUS "HAS_PGSQL_DLL been set, pgsql enable!")
+		else()
+			message(STATUS "pgsql disable!")
+		endif()
+
+		if (HAS_SQLITE MATCHES "YES")
+			add_definitions("-DHAS_SQLITE")
+			message(STATUS "HAS_SQLITE been set, sqlite enable!")
+		elseif (HAS_SQLITE_DLL MATCHES "YES")
+			add_definitions("-DHAS_SQLITE_DLL")
+			message(STATUS "HAS_SQLITE_DLL been set, sqlite enable!")
+		else()
+			message(STATUS "sqlite disable!")
+		endif()
+	endif()
+
+	if (HAS_POLARSSL MATCHES "YES")
+		add_definitions("-DHAS_POLARSSL")
+		message(STATUS "HAS_POLARSSL been set, polarssl enable!")
+	elseif (HAS_MBEDTSL MATCHES "YES")
+		add_definitions("-DHAS_MBEDTLS")
+		message(STATUS "HAS_MBEDTLS been set, mbedtls enable!")
+	elseif (HAS_POLARSSL_DLL MATCHES "YES")
+		add_definitions("-DHAS_POLARSSL_DLL")
+		message(STATUS "HAS_POLARSSL_DLL been set, polarssl enable!")
+	elseif (HAS_MBEDTLS_DLL MATCHES "YES")
+		add_definitions("-DHAS_MBEDTLS_DLL")
+		message(STATUS "HAS_MBEDTLS_DLL been set, mbedtls enable!")
+	else()
+		message(STATUS "polarssl disable!")
+	endif()
+
+
 elseif (${WIN_OS})
 	add_definitions(
 		"-Ycacl_stdafx.hpp"
@@ -133,38 +197,48 @@ elseif (${WIN_OS})
 		"-DHAS_SQLITE_DLL"
 		"-DHAS_PGSQL_DLL"
 		"-DHAS_POLARSSL_DLL"
+		"-DHAS_MBEDTLS_DLL"
 		"-DUSE_WIN_ICONV")
 	aux_source_directory(${src}/stdlib/internal lib_src)
 endif()
 
 if (CMAKE_SYSTEM_NAME MATCHES "Android")
-	# set(CMAKE_SHARED_LINKER_FLAGS "-shared -lz")
-	set(CMAKE_SHARED_LINKER_FLAGS "-lz")
-	add_definitions("-Wno-invalid-source-encoding")
+	set(lib_output_path ${CMAKE_CURRENT_SOURCE_DIR}/../android/lib/${ANDROID_ABI})
 else()
 	set(lib_output_path ${PROJECT_BINARY_DIR}/lib)
+endif()
 
-	set(LIBRARY_OUTPUT_PATH ${lib_output_path})
-	add_library(acl_cpp_static STATIC ${lib_src})
-	SET_TARGET_PROPERTIES(acl_cpp_static PROPERTIES OUTPUT_NAME "acl_cpp")
+set(LIBRARY_OUTPUT_PATH ${lib_output_path})
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${lib_output_path})
 
-	if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
-		set(CMAKE_SHARED_LINKER_FLAGS
-			"-shared -Wl,-rpath,. -L${lib_output_path} -lprotocol -lacl -liconv -lz -lpthread")
-	elseif (${UNIX_OS})
-		set(CMAKE_SHARED_LINKER_FLAGS
-			"-shared -Wl,-rpath,. -L${lib_output_path} -lprotocol -lacl -lz -lpthread")
-	elseif (${WIN_OS})
-		set(CMAKE_SHARED_LINKER_FLAGS "/DYNAMICBASE ws2_32.lib")
+add_library(acl_cpp_static STATIC ${lib_src})
+SET_TARGET_PROPERTIES(acl_cpp_static PROPERTIES OUTPUT_NAME "acl_cpp")
+link_directories(${lib_output_path})
+
+if (${UNIX_OS})
+	if (NOT ANDROID_STL MATCHES "gnustl_shared")
+		set(CMAKE_SHARED_LINKER_FLAGS "-shared -lz -O3 -flto")
 	endif()
+	target_compile_options(acl_cpp_static PRIVATE
+		-fvisibility=hidden -fvisibility-inlines-hidden)
+endif()
 
-	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${lib_output_path})
-	link_directories(${lib_output_path})
+if (CMAKE_SYSTEM_NAME MATCHES "Darwin")
+	set(CMAKE_SHARED_LINKER_FLAGS
+		"${lib_output_path}/libprotocol.a ${lib_output_path}/libacl.a -liconv -lz -lpthread")
+elseif (CMAKE_SYSTEM_NAME MATCHES "Android")
+elseif (${UNIX_OS})
+	if (NOT ANDROID_STL MATCHES "gnustl_shared")
+		set(CMAKE_SHARED_LINKER_FLAGS
+			"${lib_output_path}/libprotocol.a ${lib_output_path}/libacl.a -lz -lpthread")
+	endif()
 endif()
 
 if(NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
-	add_library(acl_cpp SHARED ${lib_src})
-	target_link_libraries(acl_cpp protocol acl)
+	if (ACL_BUILD_SHARED MATCHES "YES")
+		add_library(acl_cpp SHARED ${lib_src})
+		target_link_libraries(acl_cpp protocol acl)
+	endif()
 endif()
 
 ##############################################################################

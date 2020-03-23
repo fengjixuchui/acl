@@ -23,6 +23,7 @@ static acl_pthread_key_t cache_key = (acl_pthread_key_t) -1;
 static acl_pthread_once_t once_control = ACL_PTHREAD_ONCE_INIT;
 
 static ACL_ARRAY *main_cache = NULL;
+# ifndef HAVE_NO_ATEXIT
 static void main_cache_free(void)
 {
 	if (main_cache) {
@@ -31,6 +32,7 @@ static void main_cache_free(void)
 		main_cache = NULL;
 	}
 }
+# endif
 
 static void thread_cache_init(void)
 {
@@ -72,10 +74,12 @@ HTTP_HDR_RES *http_hdr_res_new(void)
 	if (pool == NULL) {
 		pool = acl_array_create(100);
 		acl_pthread_setspecific(cache_key, pool);
+#ifndef HAVE_NO_ATEXIT
 		if ((unsigned long) acl_pthread_self() == acl_main_thread_self()) {
 			main_cache = pool;
 			atexit(main_cache_free);
 		}
+#endif
 	}
 	hh = (HTTP_HDR_RES*) pool->pop_back(pool);
 	if (hh) {
@@ -246,7 +250,7 @@ int http_hdr_res_parse(HTTP_HDR_RES *hdr_res)
 	return (http_hdr_parse(hdr));
 }
 
-int http_hdr_res_range(HTTP_HDR_RES *hdr_res, http_off_t *range_from,
+int http_hdr_res_range(const HTTP_HDR_RES *hdr_res, http_off_t *range_from,
 	http_off_t *range_to, http_off_t *total_length)
 {
 	const char* myname = "http_hdr_res_range";

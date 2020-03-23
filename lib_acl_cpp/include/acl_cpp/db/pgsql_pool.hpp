@@ -2,6 +2,8 @@
 #include "../acl_cpp_define.hpp"
 #include "../db/db_pool.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl {
 
 class db_handle;
@@ -22,3 +24,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

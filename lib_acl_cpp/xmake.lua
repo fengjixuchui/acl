@@ -16,20 +16,20 @@ target("acl_cpp")
     add_includedirs("$(projectdir)/include/mysql")
     add_includedirs("$(projectdir)/include/pgsql")
     add_includedirs("$(projectdir)/include/sqlite")
-    add_includedirs("src", "include")
+    add_includedirs("src")
+    add_includedirs("include", {public = true})
 
     -- add headers
-    add_headers("include/(**.h)", "include/(**.hpp)", "include/(**.ipp)")
-    set_headerdir("$(buildir)/include/acl_cpp")
+    add_headerfiles("include/(**.h)", "include/(**.hpp)", "include/(**.ipp)")
 
     -- set precompile header
     set_pcxxheader("src/acl_stdafx.hpp")
 
     -- add defines and links
-    add_defines("HAS_MYSQL_DLL", "HAS_PGSQL_DLL", "HAS_SQLITE_DLL", "HAS_POLARSSL_DLL")
+    -- add_defines("HAS_MYSQL_DLL", "HAS_PGSQL_DLL", "HAS_SQLITE_DLL", "HAS_POLARSSL_DLL")
     if is_plat("windows") then
         add_defines("HAS_ZLIB_DLL", "USE_WIN_ICONV")
     else
-        add_links("iconv")
+        -- add_links("iconv")
     end
 

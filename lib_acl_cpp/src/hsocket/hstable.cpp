@@ -3,16 +3,18 @@
 #include "acl_cpp/hsocket/hstable.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
 hstable::hstable(int id, const char* dbn, const char* tbl,
 	const char* idx, const char* flds)
 {
-	id_ = id;
-	dbn_ = acl_mystrdup(dbn);
-	tbl_ = acl_mystrdup(tbl);
-	idx_ = acl_mystrdup(idx);
+	id_   = id;
+	dbn_  = acl_mystrdup(dbn);
+	tbl_  = acl_mystrdup(tbl);
+	idx_  = acl_mystrdup(idx);
 	flds_ = acl_mystrdup(flds);
 
 	ACL_ARGV *tokens = acl_argv_split(flds, ",; \t");
@@ -21,7 +23,7 @@ hstable::hstable(int id, const char* dbn, const char* tbl,
 	values_ = (char**) acl_mycalloc(nfld_, sizeof(char*));
 }
 
-hstable::~hstable()
+hstable::~hstable(void)
 {
 	acl_myfree(dbn_);
 	acl_myfree(tbl_);
@@ -31,3 +33,5 @@ hstable::~hstable()
 }
 
 }  // namespace acl
+
+#endif // ACL_CLIENT_ONLY

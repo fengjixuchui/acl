@@ -7,6 +7,8 @@
 #include "acl_cpp/hsocket/hsrow.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
@@ -17,7 +19,7 @@ hsrow::hsrow(int ncolum)
 	colums_ = NEW string[ncolum_];
 }
 
-hsrow::~hsrow()
+hsrow::~hsrow(void)
 {
 	delete[] colums_;
 }
@@ -26,8 +28,9 @@ void hsrow::reset(int ncolum)
 {
 	icolum_ = 0;
 	row_.clear();
-	if (ncolum <= ncolum_)
+	if (ncolum <= ncolum_) {
 		return;
+	}
 	delete[] colums_;
 	ncolum_ = ncolum;
 	colums_ = NEW string[ncolum_];
@@ -35,16 +38,14 @@ void hsrow::reset(int ncolum)
 
 void hsrow::push_back(const char* value, size_t dlen)
 {
-	if (icolum_ >= ncolum_)
-	{
+	if (icolum_ >= ncolum_) {
 		logger_error("icolum_(%d) >= ncolum_(%d)",
 			icolum_, ncolum_);
 		return;
 	}
 
 	static const char* dummy_ = "";
-	if (*value == 0)
-	{
+	if (*value == 0) {
 		row_.push_back(dummy_);
 		icolum_++;
 		return;
@@ -57,9 +58,11 @@ void hsrow::push_back(const char* value, size_t dlen)
 	icolum_++;
 }
 
-const std::vector<const char*>& hsrow::get_row() const
+const std::vector<const char*>& hsrow::get_row(void) const
 {
-	return (row_);
+	return row_;
 }
 
 }  // namespace acl
+
+#endif // ACL_CLIENT_ONLY

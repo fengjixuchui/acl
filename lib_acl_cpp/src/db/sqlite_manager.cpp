@@ -4,21 +4,25 @@
 #include "acl_cpp/db/sqlite_manager.hpp"
 #endif
 
+#if !defined(ACL_DB_DISABLE)
+
 namespace acl {
 
 sqlite_manager::sqlite_manager(const char* charset /* = "utf-8" */)
 {
-	if (charset && *charset)
+	if (charset && *charset) {
 		charset_ = acl_mystrdup(charset);
-	else
+	} else {
 		charset_ = NULL;
+	}
 	dblimit_ = 100;
 }
 
 sqlite_manager::~sqlite_manager()
 {
-	if (charset_)
+	if (charset_) {
 		acl_myfree(charset_);
+	}
 }
 
 sqlite_manager& sqlite_manager::add(const char* dbfile, size_t dblimit)
@@ -35,3 +39,5 @@ connect_pool* sqlite_manager::create_pool(const char*, size_t, size_t)
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_DB_DISABLE)

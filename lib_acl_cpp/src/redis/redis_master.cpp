@@ -3,6 +3,8 @@
 #include "acl_cpp/redis/redis_master.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -26,3 +28,5 @@ redis_master::redis_master(void)
 }
 
 }
+
+#endif // ACL_CLIENT_ONLY

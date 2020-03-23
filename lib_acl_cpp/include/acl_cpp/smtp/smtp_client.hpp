@@ -1,20 +1,23 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "../stream/socket_stream.hpp"
 #include <vector>
+
+#if !defined(ACL_MIME_DISABLE)
 
 struct SMTP_CLIENT;
 
 namespace acl {
 
 class istream;
-class polarssl_conf;
+class sslbase_conf;
 class mail_message;
 
 /**
  * SMTP 邮件发送客户端类，可以使用此类对象发送邮件，支持身份认证等功能
  */
-class ACL_CPP_API smtp_client
+class ACL_CPP_API smtp_client : public noncopyable
 {
 public:
 	/**
@@ -57,10 +60,10 @@ public:
 
 	/**
 	 * 设置 SSL 数据传输模式
-	 * @param ssl_conf {polarssl_conf*} 非空时，指定采用 SSL 传输模式
+	 * @param ssl_conf {sslbase_conf*} 非空时，指定采用 SSL 传输模式
 	 * @return {smtp_client&}
 	 */
-	smtp_client& set_ssl(polarssl_conf* ssl_conf);
+	smtp_client& set_ssl(sslbase_conf* ssl_conf);
 
 	/**
 	 * 获得上次 SMTP 交互过程服务端返回的状态码
@@ -204,7 +207,7 @@ public:
 	}
 
 private:
-	polarssl_conf* ssl_conf_;
+	sslbase_conf* ssl_conf_;
 	char* addr_;
 	int   conn_timeout_;
 	int   rw_timeout_;
@@ -217,3 +220,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_MIME_DISABLE)

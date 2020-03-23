@@ -5,12 +5,14 @@
 #include "acl_cpp/master/master_trigger.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
-master_trigger::master_trigger() {}
+master_trigger::master_trigger(void) {}
 
-master_trigger::~master_trigger() {}
+master_trigger::~master_trigger(void) {}
 
 static bool has_called = false;
 
@@ -21,7 +23,7 @@ void master_trigger::run_daemon(int argc, char** argv)
 #else
 	// 每个进程只能有一个实例在运行
 	acl_assert(has_called == false);
-	has_called = true;
+	has_called   = true;
 	daemon_mode_ = true;
 
 	acl_trigger_server_main(argc, argv, service_main,
@@ -48,8 +50,9 @@ void master_trigger::run_alone(const char* path /* = NULL */,
 #ifdef ACL_WINDOWS
 	acl_cpp_init();
 #endif
-	if (interval <= 0)
+	if (interval <= 0) {
 		interval = 1;
+	}
 
 	// 初始化配置参数
 	conf_.load(path);
@@ -58,12 +61,12 @@ void master_trigger::run_alone(const char* path /* = NULL */,
 	service_init(this);
 
 	int   i = 0;
-	while (true)
-	{
+	while (true) {
 		sleep(interval);
 		service_main(this);
-		if (count > 0 && ++i >= count)
+		if (count > 0 && ++i >= count) {
 			break;
+		}
 	}
 
 	service_exit(this);
@@ -72,14 +75,12 @@ void master_trigger::run_alone(const char* path /* = NULL */,
 const char* master_trigger::get_conf_path(void) const
 {
 #ifndef ACL_WINDOWS
-	if (daemon_mode_)
-	{
+	if (daemon_mode_) {
 		const char* ptr = acl_trigger_server_conf();
 		return ptr && *ptr ? ptr : NULL;
 	}
-	else
 #endif
-		return conf_.get_path();
+	return conf_.get_path();
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -90,8 +91,9 @@ void master_trigger::service_main(void* ctx)
 	acl_assert(mt != NULL);
 
 #ifndef	ACL_WINDOWS
-	if (mt->daemon_mode_)
+	if (mt->daemon_mode_) {
 		acl_watchdog_pat();
+	}
 #endif
 	mt->on_trigger();
 }
@@ -102,8 +104,7 @@ void master_trigger::service_pre_jail(void* ctx)
 	acl_assert(mt != NULL);
 
 #ifndef ACL_WINDOWS
-	if (mt->daemon_mode())
-	{
+	if (mt->daemon_mode()) {
 		ACL_EVENT* eventp = acl_trigger_server_event();
 		mt->set_event(eventp);  // 设置基类的事件引擎句柄
 	}
@@ -135,9 +136,12 @@ int master_trigger::service_on_sighup(void* ctx, ACL_VSTRING* buf)
 	acl_assert(mt);
 	string s;
 	bool ret = mt->proc_on_sighup(s);
-	if (buf)
+	if (buf) {
 		acl_vstring_strcpy(buf, s.c_str());
+	}
 	return ret ? 0 : -1;
 }
 
 }  // namespace acl
+
+#endif // ACL_CLIENT_ONLY

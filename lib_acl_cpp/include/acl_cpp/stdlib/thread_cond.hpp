@@ -1,17 +1,7 @@
-/**
- * Copyright (C) 2017-2018 IQIYI
- * All rights reserved.
- *
- * AUTHOR(S)
- *   Zheng Shuxin
- *   E-mail: zhengshuxin@qiyi.com
- * 
- * VERSION
- *   Tue 22 Aug 2017 11:20:34 AM CST
- */
-
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "noncopyable.hpp"
+
 #if !defined(_WIN32) && !defined(_WIN64)
 # include <pthread.h>
 # ifndef	acl_pthread_cond_t
@@ -28,7 +18,7 @@ class thread_mutex;
 /**
  * 线程条件变量
  */
-class ACL_CPP_API thread_cond
+class ACL_CPP_API thread_cond : public noncopyable
 {
 public:
 	/**

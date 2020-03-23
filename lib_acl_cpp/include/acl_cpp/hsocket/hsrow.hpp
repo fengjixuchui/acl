@@ -1,12 +1,15 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <vector>
+
+#ifndef ACL_CLIENT_ONLY
 
 namespace acl {
 
 class string;
 
-class ACL_CPP_API hsrow
+class ACL_CPP_API hsrow : public noncopyable
 {
 public:
 	/**
@@ -42,3 +45,5 @@ private:
 };
 
 }  // namespace acl
+
+#endif // ACL_CLIENT_ONLY

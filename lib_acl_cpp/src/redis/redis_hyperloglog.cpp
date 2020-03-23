@@ -4,6 +4,8 @@
 #include "acl_cpp/redis/redis_hyperloglog.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -112,3 +114,5 @@ bool redis_hyperloglog::pfmerge(const char* dst,
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

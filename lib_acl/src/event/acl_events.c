@@ -34,6 +34,7 @@ static void event_init(ACL_EVENT *eventp, int fdsize,
 	eventp->fdsize = fdsize;
 	/* eventp->fdtab_free_cnt = 0; */
 	eventp->fdcnt  = 0;
+	eventp->fdpos  = 0;
 	eventp->ready_cnt  = 0;
 	eventp->fdtabs = (ACL_EVENT_FDTABLE **)
 		acl_mycalloc(fdsize,sizeof(ACL_EVENT_FDTABLE *));
@@ -109,7 +110,7 @@ ACL_EVENT *acl_event_new_poll(int delay_sec, int delay_usec)
 	ACL_EVENT *eventp;
 	int   fdsize;
 
-	fdsize = event_limit(0);
+	fdsize = event_limit(102400);
 	eventp = event_new_poll(fdsize);
 	event_init(eventp, fdsize, delay_sec, delay_usec);
 	return eventp;
@@ -125,11 +126,11 @@ ACL_EVENT *acl_event_new_poll(int delay_sec, int delay_usec)
 
 ACL_EVENT *acl_event_new_poll_thr(int delay_sec, int delay_usec)
 {
-#ifdef	ACL_EVENTS_POLL_STYLE
+#if defined(ACL_EVENTS_POLL_STYLE) && defined(ACL_UNIX)
 	ACL_EVENT *eventp;
 	int   fdsize;
 
-	fdsize = event_limit(0);
+	fdsize = event_limit(102400);
 	eventp = event_poll_alloc_thr(fdsize);
 	event_init(eventp, fdsize, delay_sec, delay_usec);
 	return eventp;
@@ -149,7 +150,7 @@ ACL_EVENT *acl_event_new_kernel(int delay_sec, int delay_usec)
 	ACL_EVENT *eventp;
 	int   fdsize;
 
-	fdsize = event_limit(0);
+	fdsize = event_limit(102400);
 	eventp = event_new_kernel(fdsize);
 	event_init(eventp, fdsize, delay_sec, delay_usec);
 	return eventp;
@@ -157,8 +158,6 @@ ACL_EVENT *acl_event_new_kernel(int delay_sec, int delay_usec)
 	ACL_EVENT *eventp;
 	int   fdsize;
 
-	/* 在 ACL_WINDOWS 下的 iocp 可以支撑更大的连接，默认设为 102400 个连接
-	 */
 	fdsize = 102400;
 	eventp = event_new_iocp(fdsize);
 	event_init(eventp, fdsize, delay_sec, delay_usec);
@@ -179,7 +178,7 @@ ACL_EVENT *acl_event_new_kernel_thr(int delay_sec, int delay_usec)
 	ACL_EVENT *eventp;
 	int   fdsize;
 
-	fdsize = event_limit(0);
+	fdsize = event_limit(102400);
 #if (ACL_EVENTS_KERNEL_STYLE == ACL_EVENTS_STYLE_EPOLL)
 	eventp = event_epoll_alloc_thr(fdsize);
 #else
@@ -252,7 +251,7 @@ ACL_EVENT *acl_event_new(int event_mode, int use_thr,
 			eventp = acl_event_new_poll(delay_sec, delay_usec);
 			break;
 		case ACL_EVENT_WMSG:
-			/* 使用该值作为消息号 */
+			/* 使锟矫革拷值锟斤拷为锟斤拷息锟斤拷 */
 			eventp = acl_event_new_wmsg((unsigned int) delay_sec);
 			break;
 		default:

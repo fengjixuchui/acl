@@ -7,6 +7,8 @@
 #include "acl_cpp/db/mysql_pool.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl
 {
 
@@ -15,19 +17,22 @@ mysql_pool::mysql_pool(const char* dbaddr, const char* dbname,
 	unsigned long dbflags /* = 0 */, bool auto_commit /* = true */,
 	int conn_timeout /* = 60 */, int rw_timeout /* = 60 */,
 	const char* charset /* = "utf8" */)
-	: db_pool(dbaddr, dblimit)
+: db_pool(dbaddr, dblimit)
 {
 	acl_assert(dbaddr && *dbaddr);
 	acl_assert(dbname && *dbname);
 
 	conf_ = NEW mysql_conf(dbaddr, dbname);
 
-	if (dbuser && *dbuser)
+	if (dbuser && *dbuser) {
 		conf_->set_dbuser(dbuser);
-	if (dbpass && *dbpass)
+	}
+	if (dbpass && *dbpass) {
 		conf_->set_dbpass(dbpass);
-	if (charset && *charset)
+	}
+	if (charset && *charset) {
 		conf_->set_charset(charset);
+	}
 	conf_->set_dbflags(dbflags);
 	conf_->set_dblimit(dblimit);
 	conf_->set_auto_commit(auto_commit);
@@ -41,7 +46,7 @@ mysql_pool::mysql_pool(const mysql_conf& conf)
 	conf_ = NEW mysql_conf(conf);
 }
 
-mysql_pool::~mysql_pool()
+mysql_pool::~mysql_pool(void)
 {
 	delete conf_;
 }
@@ -52,3 +57,5 @@ connect_client* mysql_pool::create_connect()
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

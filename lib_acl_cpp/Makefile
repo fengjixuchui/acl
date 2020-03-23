@@ -9,7 +9,6 @@ RANLIB  = ${ENV_RANLIB}
 FLAGS   = ${ENV_FLAGS}
 
 CFLAGS = -c -g -W \
--O3 \
 -fPIC \
 -Wall \
 -Werror \
@@ -22,8 +21,14 @@ CFLAGS = -c -g -W \
 -DHAS_PGSQL_DLL \
 -DHAS_SQLITE_DLL \
 -DHAS_POLARSSL_DLL \
+-DHAS_MBEDTLS_DLL \
 -Winvalid-pch \
 -DACL_PREPARE_COMPILE \
+#-DACL_CLIENT_ONLY \
+#-DACL_REDIS_DISABLE \
+#-DACL_BEANSTALK_DISABLE \
+#-DACL_DB_DISABLE \
+#-DACL_MIME_DISABLE \
 #-DUSE_DYNAMIC
 # -Wcast-align
 #-Wcast-qual
@@ -82,6 +87,7 @@ endif
 ifeq ($(findstring FreeBSD, $(UNIXNAME)), FreeBSD)
 	UNIXTYPE = FREEBSD
 	CFLAGS += -Wshadow
+	CFLAGS += -O3
 	shared_ldflags = -lprotocol -lacl -L/usr/local/lib -liconv -lz -lpthread
 endif
 
@@ -89,7 +95,11 @@ endif
 ifeq ($(findstring Darwin, $(UNIXNAME)), Darwin)
 	CFLAGS += -Wno-invalid-source-encoding \
 		  -Wno-invalid-offsetof \
-		  -Wno-unused-private-field
+		  -Wno-unused-private-field \
+		  -fdata-sections \
+		  -ffunction-sections \
+		  -flto \
+		  -Os
 	CFLAGS += -Wshadow
 	UNIXTYPE = MACOSX
 	shared_ldflags = -lprotocol -lacl -L/usr/lib -liconv -lz -lpthread
@@ -99,6 +109,7 @@ endif
 ifeq ($(findstring Linux, $(UNIXNAME)), Linux)
 	UNIXTYPE = LINUX
 	CFLAGS += -Wshadow
+	CFLAGS += -O3
 	shared_ldflags = -lprotocol -lacl -lrt -lpthread -lz -ldl
 endif
 
@@ -106,6 +117,7 @@ endif
 ifeq ($(findstring MINGW, $(UNIXNAME)), MINGW)
 	CFLAGS += -DLINUX2 -DMINGW
 	CFLAGS += -Wshadow
+	CFLAGS += -O3
 	UNIXTYPE = LINUX
 endif
 
@@ -113,6 +125,7 @@ endif
 ifeq ($(findstring MSYS, $(UNIXNAME)), MSYS)
 	CFLAGS += -DLINUX2 -DMINGW
 	CFLAGS += -Wshadow
+	CFLAGS += -O3
 	UNIXTYPE = LINUX
 endif
 
@@ -125,6 +138,7 @@ ifeq ($(findstring SunOS, $(UNIXNAME)), SunOS)
 		SYSLIB = -lsocket -lnsl -lrt
 	endif
 	CFLAGS += -DSUNOS5
+	CFLAGS += -O3
 	UNIXTYPE = SUNOS5
 endif
 
@@ -132,6 +146,7 @@ endif
 ifeq ($(findstring HP-UX, $(UNIXNAME)), HP-UX)
 	CFLAGS += -DHP_UX -DHPUX11
 	CFLAGS += -Wshadow
+	CFLAGS += -O3
 	UNIXTYPE = HPUX
 endif
 

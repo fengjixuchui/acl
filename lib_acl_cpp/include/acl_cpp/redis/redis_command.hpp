@@ -1,9 +1,12 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <map>
 #include <list>
 #include <vector>
 #include "redis_result.hpp"
+
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
 
 namespace acl
 {
@@ -17,7 +20,7 @@ class redis_request;
  * the redis command classes's base virtual class, which includes the basic
  * functions for all sub-classes
  */
-class ACL_CPP_API redis_command
+class ACL_CPP_API redis_command : public noncopyable
 {
 public:
 	/**
@@ -311,7 +314,7 @@ public:
 	 * @return {const redis_result*} 返回的结果集
 	 */
 	const redis_result* request(const std::vector<string>& args,
-		size_t nchind = 0);
+		size_t nchild = 0);
 
 	const string* request_buf(void) const
 	{
@@ -439,3 +442,5 @@ protected:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

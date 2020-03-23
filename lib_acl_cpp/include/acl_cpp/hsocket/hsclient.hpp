@@ -3,8 +3,11 @@
 #include <map>
 #include <vector>
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include "../stream/socket_stream.hpp"
 #include "../hsocket/hsproto.hpp"
+
+#ifndef ACL_CLIENT_ONLY
 
 struct ACL_ARGV;
 
@@ -13,7 +16,7 @@ namespace acl {
 class hsrow;
 class hstable;
 
-class ACL_CPP_API hsclient
+class ACL_CPP_API hsclient : public noncopyable
 {
 public:
 	/**
@@ -198,3 +201,5 @@ private:
 };
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

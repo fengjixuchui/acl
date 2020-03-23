@@ -1,6 +1,7 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <map>
 
 struct ACL_VSTREAM;
@@ -9,7 +10,7 @@ namespace acl {
 
 class stream_hook;
 
-class ACL_CPP_API stream
+class ACL_CPP_API stream : public noncopyable
 {
 public:
 	stream(void);
@@ -42,7 +43,7 @@ public:
 	 * 获得当前流的 ACL_VSTREAM 流对象
 	 * @return {ACL_VSTREAM*}
 	 */
-	ACL_VSTREAM* get_vstream() const;
+	ACL_VSTREAM* get_vstream(void) const;
 
 	/**
 	 * 解绑 ACL_VSTREAM 与流对象的绑定关系，同时将 ACL_VSTREAM 返回
@@ -52,7 +53,7 @@ public:
 	 * (包括流对象读写在内)都无意义
 	 * @return {ACL_VSTREAM} 返回 NULL 表示流对象已经将 ACL_VSTREAM 解绑
 	 */
-	ACL_VSTREAM* unbind();
+	ACL_VSTREAM* unbind(void);
 
 	/**
 	 * 设置流的绑定对象
@@ -106,13 +107,13 @@ public:
 	 * 获得当前注册的流读写对象
 	 * @return {stream_hook*}
 	 */
-	stream_hook* get_hook() const;
+	stream_hook* get_hook(void) const;
 
 	/**
 	 * 删除当前注册的流读写对象并返回该对象，恢复缺省的读写过程
 	 * @return {stream_hook*}
 	 */
-	stream_hook* remove_hook();
+	stream_hook* remove_hook(void);
 
 protected:
 	/**
@@ -128,11 +129,12 @@ protected:
 protected:
 	stream_hook* hook_;
 	ACL_VSTREAM *stream_;
-	bool eof_;
-	bool opened_;
 
 	void* default_ctx_;
-	std::map<string, void*> ctx_table_;
+	std::map<string, void*>* ctx_table_;
+
+	bool eof_;
+	bool opened_;
 
 private:
 #if defined(_WIN32) || defined(_WIN64)

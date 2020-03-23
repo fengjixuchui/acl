@@ -12,7 +12,7 @@ void* atomic_cas(void*, void*, void*);
 void* atomic_xchg(void*, void*);
 
 template<typename T>
-class atomic
+class ACL_CPP_API atomic
 {
 public:
 	atomic(T* t)
@@ -43,7 +43,7 @@ private:
 	atomic(const atomic&);
 };
 
-class atomic_long : public atomic<long long>
+class ACL_CPP_API atomic_long : public atomic<long long>
 {
 public:
 	atomic_long(long long n = 0);

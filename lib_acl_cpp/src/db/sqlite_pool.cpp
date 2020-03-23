@@ -6,6 +6,8 @@
 #include "acl_cpp/db/sqlite_pool.hpp"
 #endif
 
+#if !defined(ACL_DB_DISABLE)
+
 namespace acl
 {
 
@@ -15,22 +17,26 @@ sqlite_pool::sqlite_pool(const char* dbfile, size_t dblimit /* = 64 */,
 {
 	acl_assert(dbfile && *dbfile);
 	dbfile_ = acl_mystrdup(dbfile);
-	if (charset && *charset)
+	if (charset && *charset) {
 		charset_ = acl_mystrdup(charset);
-	else
+	} else {
 		charset_ = NULL;
+	}
 }
 
-sqlite_pool::~sqlite_pool()
+sqlite_pool::~sqlite_pool(void)
 {
 	acl_myfree(dbfile_);
-	if (charset_)
+	if (charset_) {
 		acl_myfree(charset_);
+	}
 }
 
-connect_client* sqlite_pool::create_connect()
+connect_client* sqlite_pool::create_connect(void)
 {
 	return NEW db_sqlite(dbfile_, charset_);
 }
 
 } // namespace acl
+
+#endif // !defined(ACL_DB_DISABLE)

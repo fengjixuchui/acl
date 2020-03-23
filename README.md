@@ -1,5 +1,7 @@
 # acl -- One advanced C/C++ library for Unix/Windows.
 
+[English](README_EN.md)
+
 <!-- vim-markdown-toc GFM -->
 * [一、描述](#一描述)
     * [1.1、库组成](#11库组成)
@@ -312,9 +314,9 @@ acl 工程是一个跨平台（支持LINUX，WIN32，Solaris，MacOS，FreeBSD�
 - LGPL-v3 license (see [LICENSE.txt](LICENSE.txt) in the acl project)
 
 ## 六、参考
-- WEB 站点: http://zsxxsz.iteye.com
-- Github: https://github.com/acl-dev/acl
-- Oschina git: https://git.oschina.net/acl-dev/acl
+- WEB 站点: https://blog.csdn.net/zsxxsz
+- Github:   https://github.com/acl-dev/acl
+- Oschina:  https://gitee.com/acl-dev/acl
 - Download: https://sourceforge.net/projects/acl
-- 微 博：http://weibo.com/zsxxsz
-- QQ 群: 242722074
+- 微 博：   http://weibo.com/zsxxsz
+- QQ 群:    242722074

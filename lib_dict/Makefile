@@ -14,9 +14,15 @@ RANLIB  = ranlib
 #-Wno-long-long -DHAS_DB
 
 CFLAGS = -c -g -W -Wall -Wcast-align \
--Waggregate-return -Wmissing-prototypes \
--Wpointer-arith -Werror -Wshadow -O2 \
--D_REENTRANT -D_POSIX_PTHREAD_SEMANTICS -D_USE_FAST_MACRO \
+-Waggregate-return \
+-Wmissing-prototypes \
+-Wpointer-arith \
+-Werror \
+-Wshadow \
+-O2 \
+-D_REENTRANT \
+-D_POSIX_PTHREAD_SEMANTICS \
+-D_USE_FAST_MACRO \
 -Wno-long-long \
 -fPIC
 #CFLAGS = -c -g -W -Wall -Wcast-qual -Wcast-align \
@@ -87,16 +93,17 @@ endif
 
 OUT_PATH = .
 OBJ_PATH_DST = $(OUT_PATH)/debug
-LIB_PATH_DST = $(OUT_PATH)/lib
+LIB_PATH_DST = $(OUT_PATH)
 
 BASE_PATH  = .
 INC_PATH_SRC = $(BASE_PATH)/include
 SRC_PATH_SRC = $(BASE_PATH)/src
 
-INC_COMPILE  = -I$(INC_PATH_SRC) -I./cdb/include -I./tc/include
-CFLAGS += $(INC_COMPILE) -DHAS_BDB
+INC_COMPILE  = -I$(INC_PATH_SRC) -I./bdb/include -I./cdb/include -I./tc/include
+#CFLAGS += $(INC_COMPILE) -DHAS_BDB
 #CFLAGS += $(INC_COMPILE)
 #CFLAGS += $(INC_COMPILE) -DHAS_DB -DHAS_TC -DHAS_CDB
+CFLAGS += $(INC_COMPILE) -DHAS_CDB
 
 #Project's objs
 DICT_SRC   = $(wildcard $(SRC_PATH_SRC)/*.c)

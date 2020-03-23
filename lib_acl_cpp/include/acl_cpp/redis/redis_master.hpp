@@ -2,6 +2,8 @@
 #include "../acl_cpp_define.hpp"
 #include "../stdlib/string.hpp"
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -34,3 +36,5 @@ public:
 };
 
 }
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)

@@ -6,44 +6,48 @@ static int __loop_count = 10;
 static connect_pool* __conn_pool = NULL;
 static acl_pthread_pool_t* __thr_pool = NULL;
 static bool __unzip = false;
+static bool __debug = false;
+static acl::string __host;
 
-// åˆå§‹åŒ–è¿‡ç¨‹
+// ³õÊ¼»¯¹ı³Ì
 static void init(const char* addr, int count)
 {
-	// åˆ›å»º HTTP è¯·æ±‚è¿æ¥æ± å¯¹è±¡
+	// ´´½¨ HTTP ÇëÇóÁ¬½Ó³Ø¶ÔÏó
 	__conn_pool = new http_request_pool(addr, count);
 
-	// åˆ›å»ºçº¿ç¨‹æ± 
+	// ´´½¨Ïß³Ì³Ø
 	__thr_pool = acl_thread_pool_create(count, 60);
 }
 
-// è¿›ç¨‹é€€å‡ºå‰æ¸…ç†èµ„æº
+// ½ø³ÌÍË³öÇ°ÇåÀí×ÊÔ´
 static void end(void)
 {
-	// é”€æ¯çº¿ç¨‹æ± 
+	// Ïú»ÙÏß³Ì³Ø
 	acl_pthread_pool_destroy(__thr_pool);
 
-	// é”€æ¯è¿æ¥æ± 
+	// Ïú»ÙÁ¬½Ó³Ø
 	delete __conn_pool;
 }
 
-// HTTP è¯·æ±‚è¿‡ç¨‹ï¼Œå‘æœåŠ¡å™¨å‘é€è¯·æ±‚åä»æœåŠ¡å™¨è¯»å–å“åº”æ•°æ®
+// HTTP ÇëÇó¹ı³Ì£¬Ïò·şÎñÆ÷·¢ËÍÇëÇóºó´Ó·şÎñÆ÷¶ÁÈ¡ÏìÓ¦Êı¾İ
 static bool http_get(http_request* conn, int n)
 {
-	// åˆ›å»º HTTP è¯·æ±‚å¤´æ•°æ®
+	// ´´½¨ HTTP ÇëÇóÍ·Êı¾İ
 	http_header& header = conn->request_header();
-	header.set_host("www.sina.com.cn")
-		.set_url("/")
+	header.set_url("/")
 		.set_keep_alive(true)
 		.set_method(HTTP_METHOD_GET)
 		.accept_gzip(__unzip);
+	if (!__host.empty()) {
+		header.set_host(__host);
+	}
 
-	if (0)
-	printf("%lu--%d: begin send request\r\n",
-		(unsigned long) acl_pthread_self(), n);
-	// å‘é€ HTTP è¯·æ±‚æ•°æ®åŒæ—¶æ¥æ”¶ HTTP å“åº”å¤´
-	if (conn->request(NULL, 0) == false)
-	{
+	if (__debug) {
+		printf("%lu--%d: begin send request\r\n",
+			(unsigned long) acl_pthread_self(), n);
+	}
+	// ·¢ËÍ HTTP ÇëÇóÊı¾İÍ¬Ê±½ÓÊÕ HTTP ÏìÓ¦Í·
+	if (conn->request(NULL, 0) == false) {
 		printf("%lu--%d: send GET request error\r\n",
 			(unsigned long) acl_pthread_self(), n);
 		return false;
@@ -52,70 +56,71 @@ static bool http_get(http_request* conn, int n)
 	char  buf[8192];
 	int   ret, length = 0;
 
-	// æ¥æ”¶ HTTP å“åº”ä½“æ•°æ®
-	while (true)
-	{
+	// ½ÓÊÕ HTTP ÏìÓ¦ÌåÊı¾İ
+	while (true) {
 		ret = conn->read_body(buf, sizeof(buf));
-		if (ret == 0)
+		if (ret == 0) {
 			break;
-		else if (ret < 0)
-		{
+		} else if (ret < 0) {
 			printf("%lu--%d: error, length: %d\r\n",
 				(unsigned long) acl_pthread_self(), n, length);
 			return false;
 		}
 		length += ret;
-		if (0)
+		if (__debug) {
 			printf("%lu--%d: read length: %d, %d\r\n",
 				(unsigned long) acl_pthread_self(), n, length, ret);
+		}
 	}
-	if (0)
-	printf("%lu--%d: read body over, length: %d\r\n",
-		(unsigned long) acl_pthread_self(), n, length);
+	if (__debug) {
+		printf("%lu--%d: read body over, length: %d\r\n",
+			(unsigned long) acl_pthread_self(), n, length);
+	}
 	return true;
 }
 
-// çº¿ç¨‹å¤„ç†è¿‡ç¨‹
+// Ïß³Ì´¦Àí¹ı³Ì
 static void thread_main(void*)
 {
-	for (int i = 0; i < __loop_count; i++)
-	{
-		// ä»è¿æ¥æ± ä¸­è·å–ä¸€ä¸ª HTTP è¿æ¥
+	for (int i = 0; i < __loop_count; i++) {
+		// ´ÓÁ¬½Ó³ØÖĞ»ñÈ¡Ò»¸ö HTTP Á¬½Ó
 		http_request* conn = (http_request*) __conn_pool->peek();
-		if (conn == NULL)
-		{
+		if (conn == NULL) {
 			printf("peek connect failed\r\n");
 			break;
 		}
 
-		// éœ€è¦å¯¹è·å¾—çš„è¿æ¥é‡ç½®çŠ¶æ€ï¼Œä»¥æ¸…é™¤ä¸Šæ¬¡è¯·æ±‚è¿‡ç¨‹çš„ä¸´æ—¶æ•°æ®
-		else
+		// ĞèÒª¶Ô»ñµÃµÄÁ¬½ÓÖØÖÃ×´Ì¬£¬ÒÔÇå³ıÉÏ´ÎÇëÇó¹ı³ÌµÄÁÙÊ±Êı¾İ
+		else {
 			conn->reset();
-		// å¼€å§‹æ–°çš„ HTTP è¯·æ±‚è¿‡ç¨‹
-		if (http_get(conn, i) == false)
-		{
-			printf("one request failed, close connection\r\n");
-			// é”™è¯¯è¿æ¥éœ€è¦å…³é—­
-			__conn_pool->put(conn, false);
 		}
-		else
+		// ¿ªÊ¼ĞÂµÄ HTTP ÇëÇó¹ı³Ì
+		if (http_get(conn, i) == false) {
+			printf("one request failed, close connection\r\n");
+			// ´íÎóÁ¬½ÓĞèÒª¹Ø±Õ
+			__conn_pool->put(conn, false);
+		} else {
 			__conn_pool->put(conn, true);
+		}
 	}
 }
 
 static void run(int cocurrent)
 {
-	// å‘çº¿ç¨‹æ± ä¸­æ·»åŠ ä»»åŠ¡
-	for (int i = 0; i < cocurrent; i++)
+	// ÏòÏß³Ì³ØÖĞÌí¼ÓÈÎÎñ
+	for (int i = 0; i < cocurrent; i++) {
 		acl_pthread_pool_add(__thr_pool, thread_main, NULL);
+	}
 }
 
 static void usage(const char* procname)
 {
 	printf("usage: %s -h [help]\r\n"
 		"	-s http_server_addr [www.sina.com.cn:80]\r\n"
+		"	-H host\r\n"
 		"	-z [unzip response body, default: false]\r\n"
 		"	-c cocurrent [default: 10]\r\n"
+		"	-D [if in debug mode]\r\n"
 		"	-n loop_count[default: 10]\r\n", procname);
 }
 
@@ -124,18 +129,19 @@ int main(int argc, char* argv[])
 	int   ch, cocurrent = 10;
 	string addr("www.sina.com.cn:80");
 
-	// åˆå§‹åŒ– acl åº“
+	// ³õÊ¼»¯ acl ¿â
 	acl::acl_cpp_init();
 
-	while ((ch = getopt(argc, argv, "hs:n:c:z")) > 0)
-	{
-		switch (ch)
-		{
+	while ((ch = getopt(argc, argv, "hs:H:n:c:zD")) > 0) {
+		switch (ch) {
 		case 'h':
 			usage(argv[0]);
 			return 0;
 		case 's':
 			addr = optarg;
+			break;
+		case 'H':
+			__host = optarg;
 			break;
 		case 'c':
 			cocurrent = atoi(optarg);
@@ -146,10 +152,17 @@ int main(int argc, char* argv[])
 		case 'z':
 			__unzip = true;
 			break;
+		case 'D':
+			__debug = true;
+			break;
 		default:
 			usage(argv[0]);
 			return 0;
 		}
+	}
+
+	if (__host.empty()) {
+		__host = addr;
 	}
 
 	init(addr, cocurrent);

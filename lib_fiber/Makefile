@@ -3,7 +3,7 @@ DESTDIR   =
 PREFIX    = /usr
 BIN_PATH  = $(DESTDIR)/$(PREFIX)/bin/
 LIB_ACL   = $(DESTDIR)/$(PREFIX)/lib
-INC_ACL   = $(DESTDIR)/$(PREFIX)/include/acl-lib/
+INC_ACL   = $(DESTDIR)/$(PREFIX)/include/acl-lib
 
 lib_fiber:
 	@(cd c; make)

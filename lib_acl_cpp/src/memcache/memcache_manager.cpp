@@ -4,14 +4,16 @@
 #include "acl_cpp/memcache/memcache_manager.hpp"
 #endif
 
+#ifndef ACL_CLIENT_ONLY
+
 namespace acl
 {
 
-memcache_manager::memcache_manager()
+memcache_manager::memcache_manager(void)
 {
 }
 
-memcache_manager::~memcache_manager()
+memcache_manager::~memcache_manager(void)
 {
 }
 
@@ -24,3 +26,5 @@ connect_pool* memcache_manager::create_pool(const char* addr,
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

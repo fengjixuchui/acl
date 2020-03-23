@@ -4,6 +4,8 @@
 #include "acl_cpp/db/db_service_mysql.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)
+
 namespace acl
 {
 
@@ -22,12 +24,10 @@ db_service_mysql::db_service_mysql(const char* dbaddr, const char* dbname,
 , conn_timeout_(conn_timeout)
 , rw_timeout_(rw_timeout)
 {
-
 }
 
 db_service_mysql::~db_service_mysql(void)
 {
-
 }
 
 db_handle* db_service_mysql::db_create(void)
@@ -37,4 +37,6 @@ db_handle* db_service_mysql::db_create(void)
 	return db;
 }
 
-}
+} // namespace acl
+
+#endif // !defined(ACL_CLIENT_ONLY) && !defined(ACL_DB_DISABLE)

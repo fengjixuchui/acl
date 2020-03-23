@@ -2,6 +2,7 @@
 #ifndef ACL_PREPARE_COMPILE
 #include "acl_cpp/stdlib/log.hpp"
 #include "acl_cpp/stream/socket_stream.hpp"
+#include "acl_cpp/stream/aio_socket_stream.hpp"
 #include "acl_cpp/http/websocket.hpp"
 #endif
 
@@ -12,6 +13,14 @@
 namespace acl
 {
 
+enum {
+	WS_HEAD_2BYTES,
+	WS_HEAD_LEN_2BYTES,
+	WS_HEAD_LEN_8BYTES,
+	WS_HEAD_MASKING_KEY,
+	WS_HEAD_FINISH,
+};
+
 websocket::websocket(socket_stream& client)
 : client_(client)
 , header_buf_(NULL)
@@ -20,6 +29,8 @@ websocket::websocket(socket_stream& client)
 , payload_nread_(0)
 , payload_nsent_(0)
 , header_sent_(false)
+, status_(WS_HEAD_2BYTES)
+, peek_buf_(NULL)
 {
 	reset();
 }
@@ -29,6 +40,7 @@ websocket::~websocket(void)
 	if (header_buf_) {
 		acl_myfree(header_buf_);
 	}
+	delete peek_buf_;
 }
 
 websocket& websocket::reset(void)
@@ -38,13 +50,18 @@ websocket& websocket::reset(void)
 	header_.rsv2        = false;
 	header_.rsv3        = false;
 	header_.opcode      = FRAME_TEXT;
-	header_.mask        = false;
+//	header_.mask        = false;
 	header_.payload_len = 0;
-	header_.masking_key = 0;
+//	header_.masking_key = 0;
 
-	payload_nread_ = 0;
-	payload_nsent_ = 0;
-	header_sent_   = false;
+	payload_nread_      = 0;
+	payload_nsent_      = 0;
+	header_sent_        = false;
+	status_             = WS_HEAD_2BYTES;
+
+	if (peek_buf_) {
+		peek_buf_->clear();
+	}
 
 	return *this;
 }
@@ -88,7 +105,7 @@ websocket& websocket::set_frame_payload_len(unsigned long long len)
 websocket& websocket::set_frame_masking_key(unsigned int mask)
 {
 	header_.masking_key = mask;
-	header_.mask = true;
+	header_.mask = mask != 0 ? true : false;
 	return *this;
 }
 
@@ -158,27 +175,7 @@ void websocket::make_frame_header(void)
 	}
 }
 
-bool websocket::send_frame_data(const char* str)
-{
-	return send_frame_data(str, str ? strlen(str) : 0);
-}
-
-bool websocket::send_frame_data(const void* data, size_t len)
-{
-	if (data == NULL || len == 0) {
-		return send_frame_data((void*) data, len);
-	}
-
-	void* buf = acl_mymemdup(data, len);
-	bool ret  = send_frame_data(buf, len);
-	acl_myfree(buf);
-	return ret;
-}
-
-bool websocket::send_frame_data(char* str)
-{
-	return send_frame_data(str, str ? strlen(str) : 0);
-}
+//////////////////////////////////////////////////////////////////////////////
 
 bool websocket::send_frame_data(void* data, size_t len)
 {
@@ -220,6 +217,28 @@ bool websocket::send_frame_data(void* data, size_t len)
 	return true;
 }
 
+bool websocket::send_frame_data(const char* str)
+{
+	return send_frame_data(str, str ? strlen(str) : 0);
+}
+
+bool websocket::send_frame_data(const void* data, size_t len)
+{
+	if (data == NULL || len == 0) {
+		return send_frame_data((void*) data, len);
+	}
+
+	void* buf = acl_mymemdup(data, len);
+	bool  ret = send_frame_data(buf, len);
+	acl_myfree(buf);
+	return ret;
+}
+
+bool websocket::send_frame_data(char* str)
+{
+	return send_frame_data(str, str ? strlen(str) : 0);
+}
+
 bool websocket::send_frame_pong(const char* str)
 {
 	return send_frame_pong(str, str ? strlen(str) : 0);
@@ -247,7 +266,7 @@ bool websocket::send_frame_pong(void* data, size_t len)
 	reset();
 	set_frame_fin(true);
 	set_frame_opcode(FRAME_PONG);
-	set_frame_payload_len(0);
+	set_frame_payload_len(len);
 
 	return send_frame_data(data, len);
 }
@@ -295,6 +314,79 @@ static bool is_big_endian(void)
 	}
 }
 
+//////////////////////////////////////////////////////////////////////////////
+
+bool websocket::send_frame_data(aio_socket_stream& conn, void* data, size_t len)
+{
+	if (!header_sent_) {
+		header_sent_ = true;
+		make_frame_header();
+		conn.write(header_buf_, (int) header_len_);
+	}
+
+	if (data == NULL || len == 0) {
+		return true;
+	}
+
+	// senity check
+	if (payload_nsent_ + len > header_.payload_len) {
+		logger_error("data len overflow=%llu > %llu, %llu, %lu",
+			payload_nsent_ + len, header_.payload_len,
+			payload_nsent_, (unsigned long) len);
+		return false;
+	}
+
+	if (header_.mask) {
+		unsigned char* mask = (unsigned char*) &header_.masking_key;
+		for (size_t i = 0; i < len; i++) {
+			((char*) data)[i] ^= mask[(payload_nsent_ + i) % 4];
+		}
+	}
+
+	conn.write(data, (int) len);
+	payload_nsent_ += len;
+	return true;
+}
+
+bool websocket::send_frame_text(aio_socket_stream& conn, char* data, size_t len)
+{
+	reset();
+	set_frame_fin(true);
+	set_frame_opcode(FRAME_TEXT);
+	set_frame_payload_len(len);
+	//set_frame_masking_key(1);
+	return send_frame_data(conn, data, len);
+}
+
+bool websocket::send_frame_binary(aio_socket_stream& conn, void* data, size_t len)
+{
+	reset();
+	set_frame_fin(true);
+	set_frame_opcode(FRAME_BINARY);
+	set_frame_payload_len(len);
+	return send_frame_data(conn, data, len);
+}
+
+bool websocket::send_frame_ping(aio_socket_stream& conn, void* data, size_t len)
+{
+	reset();
+	set_frame_fin(true);
+	set_frame_opcode(FRAME_PING);
+	set_frame_payload_len(len);
+	return send_frame_data(conn, data, len);
+}
+
+bool websocket::send_frame_pong(aio_socket_stream& conn, void* data, size_t len)
+{
+	reset();
+	set_frame_fin(true);
+	set_frame_opcode(FRAME_PONG);
+	set_frame_payload_len(len);
+	return send_frame_data(conn, data, len);
+}
+
+//////////////////////////////////////////////////////////////////////////////
+
 #ifndef swap64
 #define swap64(val) (((val) >> 56) | \
 	(((val) & 0x00ff000000000000ll) >> 40) | \
@@ -313,7 +405,6 @@ bool websocket::read_frame_head(void)
 {
 	reset();
 
-	int  ret;
 	unsigned char buf[8];
 
 	if (client_.read(buf, 2) == -1) {
@@ -324,34 +415,38 @@ bool websocket::read_frame_head(void)
 		return false;
 	}
 
-	header_.fin    = (buf[0] >> 7) & 0x01;
-	header_.rsv1   = (buf[0] >> 6) & 0x01;
-	header_.rsv2   = (buf[0] >> 5) & 0x01;
-	header_.rsv3   = (buf[0] >> 4) & 0x01;
-	header_.opcode = buf[0] & 0x0f;
-	header_.mask   = (buf[1] >> 7) & 0x01;
+	update_head_2bytes(buf[0], buf[1]);
 
-	unsigned char payload_len = buf[1] & 0x7f;
-	if (payload_len <= 125) {
-		header_.payload_len = payload_len;
+	size_t count;
 
+	// payload_len: <= 125 | 126 | 127
+
+	if (header_.payload_len == 126) {
+		count = 2;
+	} else if (header_.payload_len > 126) {
+		count = 8;
+	} else {
+		count = 0;
 	}
 
-	// payload_len == 126 | 127
-	else if ((ret = client_.read(buf, payload_len == 126 ? 2 : 8)) == -1) {
-		if (last_error() != ACL_ETIMEDOUT) {
-			logger_error("read ext_payload_len error: %d, %s",
-				last_error(), last_serror());
+	if (count > 0) {
+		int  ret;
+
+		if ((ret = client_.read(buf, count)) == -1) {
+			if (last_error() != ACL_ETIMEDOUT) {
+				logger_error("read ext_payload_len error:"
+					" %d, %s", last_error(), last_serror());
+			}
+			return false;
+		} else if (ret == 2) {
+			unsigned short n;
+			memcpy(&n, buf, ret);
+			header_.payload_len = ntohs(n);
+		} else {
+			// ret == 8
+			memcpy(&header_.payload_len, buf, ret);
+			header_.payload_len = ntoh64(header_.payload_len);
 		}
-		return false;
-	} else if (ret == 2) {
-		unsigned short n;
-		memcpy(&n, buf, ret);
-		header_.payload_len = ntohs(n);
-	} else {
-		// ret == 8
-		memcpy(&header_.payload_len, buf, ret);
-		header_.payload_len = ntoh64(header_.payload_len);
 	}
 
 	if (!header_.mask) {
@@ -397,6 +492,233 @@ int websocket::read_frame_data(void* buf, size_t size)
 
 	payload_nread_ += ret;
 	return ret;
+}
+
+void websocket::update_head_2bytes(unsigned char ch1, unsigned ch2)
+{
+	header_.fin         = (ch1 >> 7) & 0x01;
+	header_.rsv1        = (ch1 >> 6) & 0x01;
+	header_.rsv2        = (ch1 >> 5) & 0x01;
+	header_.rsv3        = (ch1 >> 4) & 0x01;
+	header_.opcode      = ch1 & 0x0f;
+	header_.mask        = (ch2 >> 7) & 0x01;
+
+	header_.payload_len = ch2 & 0x7f;
+}
+
+bool websocket::peek_head_2bytes(void)
+{
+	size_t len = peek_buf_->size();
+
+	if (len >= 2) {
+		logger_fatal("overflow, len=%ld", (long) len);
+	}
+
+	if (!client_.readn_peek(peek_buf_, 2 - len, false)) {
+		return false;
+	}
+
+	assert(peek_buf_->size() == 2);
+
+	unsigned char* s = (unsigned char*) peek_buf_->c_str();
+	update_head_2bytes(s[0], s[1]);
+
+	if (header_.payload_len == 126) {
+		status_ = WS_HEAD_LEN_2BYTES;
+	} else if (header_.payload_len > 126) {
+		status_ = WS_HEAD_LEN_8BYTES;
+	}
+	// header_.payload_len <= 125
+	else if (header_.mask) {
+		status_ = WS_HEAD_MASKING_KEY;
+	} else {
+		status_ = WS_HEAD_FINISH;
+	}
+
+	peek_buf_->clear();
+	return true;
+}
+
+bool websocket::peek_head_len_2bytes(void)
+{
+	size_t len = peek_buf_->size();
+
+	if (len >= 2) {
+		logger_fatal("overflow, len=%ld", (long) len);
+	}
+
+	if (!client_.readn_peek(peek_buf_, 2 - len, false)) {
+		return false;
+	}
+
+	assert(peek_buf_->size() == 2);
+
+	unsigned short n;
+	memcpy(&n, peek_buf_->c_str(), 2);
+	header_.payload_len = ntohs(n);
+
+	status_ = header_.mask ? WS_HEAD_MASKING_KEY : WS_HEAD_FINISH;
+	peek_buf_->clear();
+	return true;
+}
+
+bool websocket::peek_head_len_8bytes(void)
+{
+	size_t len = peek_buf_->size();
+
+	if (len >= 8) {
+		logger_fatal("overflow, len=%ld", (long) len);
+	}
+
+	if (!client_.readn_peek(peek_buf_, 8 - len, false)) {
+		return false;
+	}
+
+	assert(peek_buf_->size() == 8);
+
+	memcpy(&header_.payload_len, peek_buf_->c_str(), 8);
+	header_.payload_len = ntoh64(header_.payload_len);
+
+	status_ = header_.mask ? WS_HEAD_MASKING_KEY : WS_HEAD_FINISH;
+	peek_buf_->clear();
+	return true;
+}
+
+bool websocket::peek_head_masking_key(void)
+{
+	size_t len = peek_buf_->size();
+
+	if (len >= sizeof(unsigned)) {
+		logger_fatal("overflow, len=%ld", (long) len);
+	}
+
+	if (!client_.readn_peek(peek_buf_, sizeof(unsigned) - len, false)) {
+		return false;
+	}
+
+	assert(peek_buf_->size() == sizeof(unsigned));
+
+	memcpy(&header_.masking_key, peek_buf_->c_str(), sizeof(unsigned));
+	status_ = WS_HEAD_FINISH;
+	peek_buf_->clear();
+	return true;
+}
+
+bool websocket::peek_frame_head(void)
+{
+	if (peek_buf_ == NULL) {
+		peek_buf_ = NEW string(8);
+	}
+
+	while (true) {
+		switch (status_) {
+		case WS_HEAD_2BYTES:
+			if (!peek_head_2bytes()) {
+				return false;
+			}
+			break;
+		case WS_HEAD_LEN_2BYTES:
+			if (!peek_head_len_2bytes()) {
+				return false;
+			}
+			break;
+		case WS_HEAD_LEN_8BYTES:
+			if (!peek_head_len_8bytes()) {
+				return false;
+			}
+			break;
+		case WS_HEAD_MASKING_KEY:
+			if (!peek_head_masking_key()) {
+				return false;
+			}
+			break;
+		case WS_HEAD_FINISH:
+			return true;
+		default:
+			logger_fatal("invalid status=%d", status_);
+			break;
+		}
+	}
+}
+
+bool websocket::is_head_finish(void) const
+{
+	return status_ == WS_HEAD_FINISH;
+}
+
+int websocket::peek_frame_data(char* buf, size_t size)
+{
+	if (payload_nread_ >= header_.payload_len) {
+		reset();
+		return 0;
+	}
+
+	if (header_.payload_len < payload_nread_ + size) {
+		size = (size_t) (header_.payload_len - payload_nread_);
+	}
+
+	// 如果未读满所要求的数据且读到的数据为空，则返回-1
+	// readn_peek 第三个参数为 true 要求内部自动清空缓冲区
+	if (!client_.readn_peek(peek_buf_, size, true) && peek_buf_->empty()) {
+		return -1;
+	}
+
+	acl_assert(!peek_buf_->empty());
+
+	size_t len = peek_buf_->size();
+	memcpy(buf, peek_buf_->c_str(), len);
+
+	if (header_.mask) {
+		unsigned char* mask = (unsigned char*) &header_.masking_key;
+		for (size_t i = 0; i < len; i++) {
+			buf[i] ^= mask[(payload_nread_ + i) % 4];
+		}
+	}
+
+	payload_nread_ += len;
+	return (int) len;
+}
+
+int websocket::peek_frame_data(string& buf, size_t size)
+{
+	if (payload_nread_ >= header_.payload_len) {
+		reset();
+		return 0;
+	}
+
+	if (header_.payload_len < payload_nread_ + size) {
+		size = (size_t) (header_.payload_len - payload_nread_);
+	}
+
+	size_t nbefore = buf.size();
+	if (!client_.readn_peek(buf, size, false)) {
+		if (buf.size() == nbefore) {
+			return -1;
+		}
+	}
+
+	size_t nafter = buf.size();
+
+	acl_assert(nafter > nbefore);
+	size_t len = nafter - nbefore;
+
+	if (header_.mask) {
+		unsigned char* mask = (unsigned char*) &header_.masking_key;
+		char* ptr = buf.c_str() + nbefore;
+
+		for (size_t i = 0; i < len; i++) {
+			ptr[i] ^= mask[(payload_nread_ + i) % 4];
+		}
+	}
+
+	payload_nread_ += len;
+	return (int) len;
+}
+
+
+bool websocket::eof(void)
+{
+	return client_.eof();
 }
 
 } // namespace acl

@@ -7,6 +7,8 @@
 #include "acl_cpp/redis/redis_cluster.hpp"
 #endif
 
+#if !defined(ACL_CLIENT_ONLY) && !defined(ACL_REDIS_DISABLE)
+
 namespace acl
 {
 
@@ -379,8 +381,7 @@ bool redis_cluster::cluster_info(std::map<string, string>& result)
 
 	string line;
 
-	while (true)
-	{
+	while (true) {
 		line.clear();
 		if (buf.scan_line(line) == false)
 			break;
@@ -528,8 +529,7 @@ const std::vector<redis_slot*>* redis_cluster::cluster_slots()
 	if (children == NULL)
 		return NULL;
 
-	for (size_t i = 0; i < size; i++)
-	{
+	for (size_t i = 0; i < size; i++) {
 		const redis_result* rr2 = children[i];
 		if (rr2 == NULL || rr2->get_type() != REDIS_RESULT_ARRAY)
 			continue;
@@ -561,8 +561,7 @@ redis_slot* redis_cluster::get_slot_master(const redis_result* rr)
 	if (master == NULL)
 		return NULL;
 
-	for (size_t i = 3; i < size; i++)
-	{
+	for (size_t i = 3; i < size; i++) {
 		redis_slot* slave = get_slot(children[i], slot_max, slot_min);
 		if (slave != NULL)
 			master->add_slave(slave);
@@ -627,8 +626,7 @@ const std::vector<redis_node*>* redis_cluster::cluster_slaves(const char* node)
 		return NULL;
 
 	std::vector<string>::iterator it = lines.begin();
-	for (; it != lines.end(); ++it)
-	{
+	for (; it != lines.end(); ++it) {
 		std::vector<string>& tokens = (*it).split2(" ");
 		if (tokens.size() < 3)
 			continue;
@@ -693,8 +691,7 @@ const std::map<string, redis_node*>* redis_cluster::cluster_nodes()
 	std::vector<redis_node*> slaves;
 	acl::string line;
 
-	while (true)
-	{
+	while (true) {
 		if (buf.scan_line(line) == false)
 			break;
 		redis_node* node = get_node(line);
@@ -704,14 +701,12 @@ const std::map<string, redis_node*>* redis_cluster::cluster_nodes()
 	}
 
 	for (std::vector<redis_node*>::iterator it = slaves.begin();
-		it != slaves.end(); ++it)
-	{
+		it != slaves.end(); ++it) {
 		const char* id = (*it)->get_master_id();
 		std::map<string, redis_node*>::iterator it2 = masters_.find(id);
 		if (it2 != masters_.end())
 			it2->second->add_slave(*it);
-		else
-		{
+		else {
 			logger_warn("delete orphan slave: %s", id);
 			delete *it;
 		}
@@ -740,8 +735,7 @@ const std::map<string, redis_node*>* redis_cluster::cluster_nodes()
 redis_node* redis_cluster::get_node(string& line)
 {
 	std::vector<string>& tokens = line.split2(" ");
-	if (tokens.size() < 8)
-	{
+	if (tokens.size() < 8) {
 		logger_warn("invalid tokens's size: %d < 8",
 			(int) tokens.size());
 		return NULL;
@@ -750,8 +744,7 @@ redis_node* redis_cluster::get_node(string& line)
 	bool myself = false;
 	char* node_type = tokens[2].c_str();
 	char* ptr = strchr(node_type, ',');
-	if (ptr != NULL && *(ptr + 1) != 0)
-	{
+	if (ptr != NULL && *(ptr + 1) != 0) {
 		*ptr++ = 0;
 		if (strcasecmp(node_type, "myself") == 0)
 			myself = true;
@@ -765,8 +758,7 @@ redis_node* redis_cluster::get_node(string& line)
 	node->set_connected(strcasecmp(tokens[7].c_str(), "connected") == 0);
 	node->set_master_id(tokens[3].c_str());
 
-	if (strcasecmp(node_type, "master") == 0)
-	{
+	if (strcasecmp(node_type, "master") == 0) {
 		node->set_master(node);
 		node->set_type("master");
 		masters_[tokens[0]] = node;
@@ -776,8 +768,7 @@ redis_node* redis_cluster::get_node(string& line)
 	}
 	else if (strcasecmp(node_type, "slave") == 0)
 		node->set_type("slave");
-	else if (strcasecmp(node_type, "handshake") == 0)
-	{
+	else if (strcasecmp(node_type, "handshake") == 0) {
 		node->set_master(node);
 		node->set_type("handshake");
 		node->set_handshaking(true);
@@ -797,17 +788,14 @@ void redis_cluster::add_slot_range(redis_node* node, char* slots)
 	size_t slot_min, slot_max;
 
 	char* ptr = strchr(slots, '-');
-	if (ptr != NULL && *(ptr + 1) != 0)
-	{
+	if (ptr != NULL && *(ptr + 1) != 0) {
 		*ptr++ = 0;
 		slot_min = (size_t) atol(slots);
 		slot_max = (size_t) atol(ptr);
 		// xxx
 		if (slot_max < slot_min)
 			slot_max = slot_min;
-	}
-	else
-	{
+	} else {
 		slot_min = (size_t) atol(slots);
 		slot_max = slot_min;
 	}
@@ -818,8 +806,7 @@ void redis_cluster::add_slot_range(redis_node* node, char* slots)
 void redis_cluster::free_masters()
 {
 	std::map<string, redis_node*>::iterator it = masters_.begin();
-	for (; it != masters_.end(); ++it)
-	{
+	for (; it != masters_.end(); ++it) {
 		it->second->clear_slaves(true);
 		delete it->second;
 	}
@@ -827,3 +814,5 @@ void redis_cluster::free_masters()
 }
 
 } // namespace acl
+
+#endif // ACL_CLIENT_ONLY

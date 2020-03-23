@@ -310,7 +310,7 @@ ACL_API acl_off_t acl_vstream_fseek(ACL_VSTREAM *fp, acl_off_t offset, int whenc
  * @param whence {int} 移动方向：SEEK_SET（从文件起始位置后移动）,
  *  SEEK_CUR（从当前文件指针位置向后移动）, SEEK_END（从文件尾向前移动）
  * @return ret {acl_off_t}, ret >= 0: 正确, ret < 0: 出错
- * @deprecated 该函数的效率较低
+ * @DEPRECATED 该函数的效率较低
  */
 ACL_API acl_off_t acl_vstream_fseek2(ACL_VSTREAM *fp, acl_off_t offset, int whence);
 
@@ -353,7 +353,7 @@ ACL_API int acl_vstream_fstat(ACL_VSTREAM *fp, struct acl_stat *buf);
 ACL_API acl_int64 acl_vstream_fsize(ACL_VSTREAM *fp);
 
 /**
- * 从fp 流中读取一个字节
+ * 从流中读取一个字节
  * @param fp {ACL_VSTREAM*} 数据流指针
  * @return {int} ACL_VSTREAM_EOF(出错) 或所读到的某个字节的ASCII
  *  或为 ACL_VSTREAM_EOF: 读出错或对方关闭了连接, 应该关闭该数据流
@@ -362,7 +362,7 @@ ACL_API int acl_vstream_getc(ACL_VSTREAM *fp);
 #define	acl_vstream_get_char	acl_vstream_getc
 
 /**
- * 从 fp 流中非阻塞地一次性最大读取 size 个字节
+ * 从流中非阻塞地一次性最大读取 size 个字节
  * @param fp {ACL_VSTREAM*} 数据流指针
  * @param buf {char*} 用户传来的内存缓存区
  * @param size {int} buf 缓存区的空间大小
@@ -453,7 +453,7 @@ ACL_API int acl_vstream_readtags(ACL_VSTREAM *fp, void *vptr, size_t maxlen,
 ACL_API int acl_vstream_readn(ACL_VSTREAM *fp, void *vptr, size_t maxlen);
 
 /**
- * 将 fp 缓冲区内的数据拷贝到 vptr 中
+ * 将缓冲区内的数据拷贝到 vptr 中
  * @param fp {ACL_VSTREAM*} 数据流
  * @param vptr {void*} 用户的数据缓冲区指针地址
  * @param maxlen {size_t} vptr 数据缓冲区的空间大小
@@ -487,7 +487,9 @@ ACL_API int acl_vstream_read(ACL_VSTREAM *fp, void *vptr, size_t maxlen);
  *  函数也会返回，且会将 ready 置 1，调用者需调用 fp->flag 标志位中是否包含
  *  ACL_VSTREAM_FLAG_TAGYES 来判断是否读到一行数据
  * @param ready {int*} 是否按要求读到所需数据的标志位指针, 不能为空
- * @return ret {int}, ret == ACL_VSTREAM_EOF: 表示出错, 应该关闭本地数据流,
+ * @return ret {int}, ret == ACL_VSTREAM_EOF 时，如果 acl_last_error() 系统错误
+ *  号为 ACL_EWOULDBLOCK 或 ACL_EAGAIN，则表示在非阻塞套接字上未读到数据，否则，
+ *  表示出错，应该关闭该流对象；
  *  ret >= 0: 成功从 fp 数据流的缓冲区中读取了 ret 个字节的数据
  */
 ACL_API int acl_vstream_gets_peek(ACL_VSTREAM *fp, ACL_VSTRING *buf, int *ready);
@@ -502,7 +504,9 @@ ACL_API int acl_vstream_gets_peek(ACL_VSTREAM *fp, ACL_VSTRING *buf, int *ready)
  *  函数也会返回，且会将 ready 置 1，调用者需调用 fp->flag 标志位中是否包含
  *  ACL_VSTREAM_FLAG_TAGYES 来判断是否读到一行数据
  * @param ready {int*} 是否按要求读到所需数据的标志位指针, 不能为空
- * @return ret {int}, ret == ACL_VSTREAM_EOF: 表示出错, 应该关闭本地数据流,
+ * @return ret {int}, ret == ACL_VSTREAM_EOF 时，如果 acl_last_error() 系统错误
+ *  号为 ACL_EWOULDBLOCK 或 ACL_EAGAIN，则表示在非阻塞套接字上未读到数据，否则，
+ *  表示出错，应该关闭该流对象；
  *  ret >= 0: 成功从 fp 数据流的缓冲区中读取了 ret 个字节的数据, 如果仅
  *  读到了一个空行, 则 ret == 0.
  */
@@ -515,21 +519,36 @@ ACL_API int acl_vstream_gets_nonl_peek(ACL_VSTREAM *fp, ACL_VSTRING *buf, int *r
  * @param buf {ACL_VSTRING*} 数据缓冲区
  * @param cnt {int} 所需要读的数据的长度
  * @param ready {int*} 是否按要求读到所需数据的标志位指针, 不能为空
- * @return ret {int}, ret == ACL_VSTREAM_EOF: 表示出错, 应该关闭本地数据流,
+ * @return ret {int}, ret == ACL_VSTREAM_EOF 时，如果 acl_last_error() 系统错误
+ *  号为 ACL_EWOULDBLOCK 或 ACL_EAGAIN，则表示在非阻塞套接字上未读到数据，否则，
+ *  表示出错，应该关闭该流对象；
  *  ret >= 0: 成功从 fp 数据流的缓冲区中读取了 ret 个字节的数据, 
  *  (*ready) != 0: 表示读到了所要求长度的数据.
  */
 ACL_API int acl_vstream_readn_peek(ACL_VSTREAM *fp, ACL_VSTRING *buf, int cnt, int *ready);
 
 /**
- * 一次性从 ACL_VSTREAM 流或系统缓存区中读取不固定长度的数据,
- * 只要能读到大于 0 个字节的数据则将 ready 标志位置位
+ * 一次性从 ACL_VSTREAM 流或系统缓存区中读取不固定长度的数据
  * @param fp {ACL_VSTREAM*} 数据流 
  * @param buf {ACL_VSTRING*} 数据缓冲区
- * @return  ret {int}, ret == ACL_VSTREAM_EOF: 表示出错, 应该关闭本地数据流,
+ * @return ret {int}, ret == ACL_VSTREAM_EOF 时，如果 acl_last_error() 系统错误
+ *  号为 ACL_EWOULDBLOCK 或 ACL_EAGAIN，则表示在非阻塞套接字上未读到数据，否则，
+ *  表示出错，应该关闭该流对象；
  *  ret >= 0: 成功从 fp 数据流的缓冲区中读取了 ret 个字节的数据.
  */
 ACL_API int acl_vstream_read_peek(ACL_VSTREAM *fp, ACL_VSTRING *buf);
+
+/**
+ * 一次性从 ACL_VSTREAM 流或系统缓存区中读取不固定长度的数据
+ * @param fp {ACL_VSTREAM*} 数据流 
+ * @param buf {void*} 数据缓冲区
+ * @param size {size_t} buf 长度
+ * @return ret {int}, ret == ACL_VSTREAM_EOF 时，如果 acl_last_error() 系统错误
+ *  号为 ACL_EWOULDBLOCK 或 ACL_EAGAIN，则表示在非阻塞套接字上未读到数据，否则，
+ *  表示出错，应该关闭该流对象；
+ *  ret >= 0: 成功从 fp 数据流的缓冲区中读取了 ret 个字节的数据.
+ */
+ACL_API int acl_vstream_read_peek3(ACL_VSTREAM *fp, void *buf, size_t size);
 
 /**
  * 检查 ACL_VSTREAM 流是否可读或出错
@@ -553,7 +572,7 @@ ACL_API void acl_vstream_buffed_space(ACL_VSTREAM *fp);
 
 /**
  * 刷新写缓冲区里的数据
- * @param fp: socket 数据流
+ * @param fp socket 数据流
  * @return 刷新写缓冲区里的数据量或出错 ACL_VSTREAM_EOF
  */
 ACL_API int acl_vstream_fflush(ACL_VSTREAM *fp);
@@ -591,7 +610,6 @@ ACL_API int ACL_PRINTF(2, 3) acl_vstream_buffed_fprintf(ACL_VSTREAM *fp,
 
 /**
  * 向标准输出打印信息
- * @param fmt {const char*} 数据格式 
  * @param ... 变参序列
  * @return {int}, ACL_VSTREAM_EOF: 表示写出错, > 0:  表示成功写了 dlen 个字节的数据
  */
@@ -663,7 +681,6 @@ ACL_API int ACL_PRINTF(2, 3) acl_vstream_fprintf(ACL_VSTREAM *fp,
 
 /**
  * 向标准输出打印信息
- * @param fmt {const char*} 数据格式 
  * @param ... 变参序列
  * @return {int}, ACL_VSTREAM_EOF: 表示写出错, > 0:  表示成功写了 dlen 个字节的数据
  */
@@ -752,8 +769,8 @@ ACL_API const char *acl_vstream_strerror(ACL_VSTREAM *fp);
 
 /*-----------------------  以下为常用的宏函数 ------------------------------*/
 /**
- * 从fp 流中读取一个字节的宏实现，效率要比 acl_vstream_getc()/1 高
- * @param fp {ACL_VSTREAM*} 数据流指针
+ * 从流中读取一个字节的宏实现，效率要比 acl_vstream_getc()/1 高
+ * @param stream_ptr {ACL_VSTREAM*} 数据流指针
  * @return {int} ACL_VSTREAM_EOF(出错) 或所读到的某个字节的ASCII,
  *  若为 ACL_VSTREAM_EOF: 读出错或对方关闭了连接, 应该关闭该数据流
  */
@@ -765,8 +782,8 @@ ACL_API const char *acl_vstream_strerror(ACL_VSTREAM *fp);
         (stream_ptr)->sys_getc((stream_ptr)))
 
 /**
- * 向 fp 流中写一个字节的宏实现
- * @param fp {ACL_VSTREAM*} 数据流指针
+ * 向流中写一个字节的宏实现
+ * @param stream_ptr {ACL_VSTREAM*} 数据流指针
  * @return {int} ACL_VSTREAM_EOF(出错) 或所写入字节的 ASCII
  */
 #define ACL_VSTREAM_PUTC(ch, stream_ptr) (                                   \

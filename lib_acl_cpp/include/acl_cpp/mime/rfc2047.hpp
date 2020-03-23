@@ -1,6 +1,9 @@
 #pragma once
 #include "../acl_cpp_define.hpp"
+#include "../stdlib/noncopyable.hpp"
 #include <list>
+
+#if !defined(ACL_MIME_DISABLE)
 
 namespace acl {
 
@@ -14,7 +17,7 @@ struct rfc2047_entry
 	char  coding;		// 编码格式，B 表示 BASE64, Q 表示 QP
 };
 
-class ACL_CPP_API rfc2047
+class ACL_CPP_API rfc2047 : public noncopyable
 {
 public:
 	/**
@@ -24,7 +27,7 @@ public:
 	 * @param addCrlf {bool} 在编码过程中当数据比较长时是否自动添加 "\r\n"
 	 */
 	rfc2047(bool strip_sp = true, bool addCrlf = true);
-	~rfc2047();
+	~rfc2047(void);
 
 	/**
 	 * 流式解析数据, 可以循环调用此函数, 每次添加部分数据
@@ -136,3 +139,5 @@ public:
 };
 
 } // namespace acl
+
+#endif // !defined(ACL_MIME_DISABLE)

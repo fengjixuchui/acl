@@ -8,6 +8,7 @@
 #include "IdxTrans.h"
 #include "JencodeDlg.h"
 #include "DelBOM.h"
+#include "AddBOM.h"
 #include "JencodeDlg.h"
 #include ".\jencodedlg.h"
 
@@ -54,9 +55,9 @@ END_MESSAGE_MAP()
 
 
 CJencodeDlg::CJencodeDlg(CWnd* pParent /*=NULL*/)
-	: CDialog(CJencodeDlg::IDD, pParent)
-	, m_sIdxPath(_T(""))
-	, m_fsPath(_T(""))
+: CDialog(CJencodeDlg::IDD, pParent)
+, m_sIdxPath(_T(""))
+, m_fsPath(_T(""))
 {
 	m_hIcon = AfxGetApp()->LoadIcon(IDR_MAINFRAME);
 }
@@ -83,6 +84,7 @@ BEGIN_MESSAGE_MAP(CJencodeDlg, CDialog)
 	ON_BN_CLICKED(IDC_TRANS_IDX, OnBnClickedTransIdx)
 	ON_BN_CLICKED(IDC_DEL_BOM, OnBnClickedDelBom)
 	ON_BN_CLICKED(IDC_BUTTON_GB2UNI, &CJencodeDlg::OnBnClickedButtonGb2uni)
+	ON_BN_CLICKED(IDC_ADD_BOM, &CJencodeDlg::OnBnClickedAddBom)
 END_MESSAGE_MAP()
 
 
@@ -99,12 +101,10 @@ BOOL CJencodeDlg::OnInitDialog()
 	ASSERT(IDM_ABOUTBOX < 0xF000);
 
 	CMenu* pSysMenu = GetSystemMenu(FALSE);
-	if (pSysMenu != NULL)
-	{
+	if (pSysMenu != NULL) {
 		CString strAboutMenu;
 		strAboutMenu.LoadString(IDS_ABOUTBOX);
-		if (!strAboutMenu.IsEmpty())
-		{
+		if (!strAboutMenu.IsEmpty()) {
 			pSysMenu->AppendMenu(MF_SEPARATOR);
 			pSysMenu->AppendMenu(MF_STRING, IDM_ABOUTBOX, strAboutMenu);
 		}
@@ -117,7 +117,9 @@ BOOL CJencodeDlg::OnInitDialog()
 
 	// TODO: 在此添加额外的初始化代码
 
-	acl_msg_open("jencode.log", "jencode");
+	acl::log::open("jencode.log", "jencode");
+	logger("started!");
+
 	//freopen("CONOUT$","w+t",stdout);
 	// 添加状态栏
 	int aWidths[2] = {50, -1};
@@ -132,13 +134,10 @@ BOOL CJencodeDlg::OnInitDialog()
 
 void CJencodeDlg::OnSysCommand(UINT nID, LPARAM lParam)
 {
-	if ((nID & 0xFFF0) == IDM_ABOUTBOX)
-	{
+	if ((nID & 0xFFF0) == IDM_ABOUTBOX) {
 		CAboutDlg dlgAbout;
 		dlgAbout.DoModal();
-	}
-	else
-	{
+	} else {
 		CDialog::OnSysCommand(nID, lParam);
 	}
 }
@@ -149,8 +148,7 @@ void CJencodeDlg::OnSysCommand(UINT nID, LPARAM lParam)
 
 void CJencodeDlg::OnPaint() 
 {
-	if (IsIconic())
-	{
+	if (IsIconic()) {
 		CPaintDC dc(this); // 用于绘制的设备上下文
 
 		SendMessage(WM_ICONERASEBKGND, reinterpret_cast<WPARAM>(dc.GetSafeHdc()), 0);
@@ -165,9 +163,7 @@ void CJencodeDlg::OnPaint()
 
 		// 绘制图标
 		dc.DrawIcon(x, y, m_hIcon);
-	}
-	else
-	{
+	} else {
 		CDialog::OnPaint();
 	}
 }
@@ -185,6 +181,7 @@ void CJencodeDlg::ButtonsEnable(void)
 	GetDlgItem(IDC_ACL_TRANS)->EnableWindow(TRUE);
 	GetDlgItem(IDC_ACL_RESTORE)->EnableWindow(TRUE);
 	GetDlgItem(IDC_DEL_BOM)->EnableWindow(TRUE);
+	GetDlgItem(IDC_ADD_BOM)->EnableWindow(TRUE);
 }
 
 BOOL CJencodeDlg::CheckPath(void)
@@ -192,8 +189,7 @@ BOOL CJencodeDlg::CheckPath(void)
 	UpdateData(TRUE);
 	GetDlgItem(IDC_EDIT_SPATH)->GetWindowText(m_sPath);
 	//MessageBox(m_sPath);
-	if (m_sPath.GetLength() == 0)
-	{
+	if (m_sPath.GetLength() == 0) {
 		MessageBox("请选择源目录...");
 		return FALSE;
 	}
@@ -217,19 +213,21 @@ void CJencodeDlg::ButtonsDisable(void)
 	GetDlgItem(IDC_ACL_TRANS)->EnableWindow(FALSE);
 	GetDlgItem(IDC_ACL_RESTORE)->EnableWindow(FALSE);
 	GetDlgItem(IDC_DEL_BOM)->EnableWindow(FALSE);
+	GetDlgItem(IDC_ADD_BOM)->EnableWindow(FALSE);
 }
 
 void CJencodeDlg::OnBnClickedButtonGb2utf()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
+	if (!CheckPath()) {
 		return;
+	}
 
 	static CGb2Utf8 gb2Utf8("gbk", "UTF-8");
 
 	gb2Utf8.Init(this->GetSafeHwnd(), m_sPath, m_dPath);
 	gb2Utf8.OnTransEnd(WM_USER_TRANS_OVER);
-	gb2Utf8.Run();
+	gb2Utf8.start();
 	m_wndStatus.SetText("运行", 0, 0);
 	m_nBegin = time(NULL);
 	ButtonsDisable();
@@ -238,8 +236,7 @@ void CJencodeDlg::OnBnClickedButtonGb2utf()
 void CJencodeDlg::OnBnClickedButtonUtf2gb()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
-	{
+	if (!CheckPath()) {
 		MessageBox(m_sPath);
 		return;
 	}
@@ -248,7 +245,7 @@ void CJencodeDlg::OnBnClickedButtonUtf2gb()
 
 	utf2gb.Init(this->GetSafeHwnd(), m_sPath, m_dPath);
 	utf2gb.OnTransEnd(WM_USER_TRANS_OVER);
-	utf2gb.Run();
+	utf2gb.start();
 	m_wndStatus.SetText("运行", 0, 0);
 	m_nBegin = time(NULL);
 	ButtonsDisable();
@@ -257,8 +254,7 @@ void CJencodeDlg::OnBnClickedButtonUtf2gb()
 void CJencodeDlg::OnBnClickedButtonGb2uni()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
-	{
+	if (!CheckPath()) {
 		MessageBox(m_sPath);
 		return;
 	}
@@ -269,7 +265,7 @@ void CJencodeDlg::OnBnClickedButtonGb2uni()
 
 	gb2uni.Init(this->GetSafeHwnd(), m_sPath, m_dPath);
 	gb2uni.OnTransEnd(WM_USER_TRANS_OVER);
-	gb2uni.Run();
+	gb2uni.start();
 	m_wndStatus.SetText("运行", 0, 0);
 	m_nBegin = time(NULL);
 	ButtonsDisable();
@@ -294,8 +290,7 @@ void CJencodeDlg::OnBnClickedButton2()
 
 	sPath.ReleaseBuffer();  
 
-	if (sPath.Right(1) != "\\")
-	{  
+	if (sPath.Right(1) != "\\") {  
 		sPath += "\\";
 	}
 
@@ -329,8 +324,7 @@ void CJencodeDlg::OnBnClickedButton3()
 
 	sPath.ReleaseBuffer();  
 
-	if (sPath.Right(1) != "\\")
-	{  
+	if (sPath.Right(1) != "\\") {  
 		sPath += "\\";
 	}
 
@@ -345,7 +339,7 @@ afx_msg LRESULT CJencodeDlg::OnTransOver(WPARAM uID, LPARAM lEvent)
 	msg.Format("耗时：%d 秒", time(NULL) - m_nBegin);
 	m_wndStatus.SetText("完成", 0, 0);
 	m_wndStatus.SetText(msg, 1, 0);
-	return (0);
+	return 0;
 }
 
 afx_msg LRESULT CJencodeDlg::OnTransOver2(WPARAM uID, LPARAM lEvent)
@@ -356,14 +350,15 @@ afx_msg LRESULT CJencodeDlg::OnTransOver2(WPARAM uID, LPARAM lEvent)
 	msg.Format("耗时：%d 秒", time(NULL) - m_nBegin);
 	m_wndStatus.SetText("完成!", 0, 0);
 	m_wndStatus.SetText(msg, 1, 0);
-	return (0);
+	return 0;
 }
 
 void CJencodeDlg::OnBnClickedAclTrans()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
+	if (!CheckPath()) {
 		return;
+	}
 
 	static CAclTrans aclTrans;
 
@@ -378,8 +373,9 @@ void CJencodeDlg::OnBnClickedAclTrans()
 void CJencodeDlg::OnBnClickedAclRestore()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
+	if (!CheckPath()) {
 		return;
+	}
 
 	static CAclTrans aclTrans;
 
@@ -394,14 +390,32 @@ void CJencodeDlg::OnBnClickedAclRestore()
 void CJencodeDlg::OnBnClickedDelBom()
 {
 	// TODO: 在此添加控件通知处理程序代码
-	if (!CheckPath())
+	if (!CheckPath()) {
 		return;
+	}
 
 	static CDelBOM delBom;
-
 	delBom.Init(this->GetSafeHwnd(), m_sPath);
 	delBom.OnDeleted(WM_USER_TRANS_OVER);
-	delBom.Run();
+	delBom.start();
+
+	m_wndStatus.SetText("运行", 0, 0);
+	m_nBegin = time(NULL);
+	ButtonsDisable();
+}
+
+void CJencodeDlg::OnBnClickedAddBom()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	if (!CheckPath()) {
+		return;
+	}
+
+	static CAddBOM addBom;
+	addBom.Init(this->GetSafeHwnd(), m_sPath);
+	addBom.OnAdded(WM_USER_TRANS_OVER);
+	addBom.start();
+
 	m_wndStatus.SetText("运行", 0, 0);
 	m_nBegin = time(NULL);
 	ButtonsDisable();
@@ -411,8 +425,7 @@ void CJencodeDlg::OnBnClickedIdxSelect()
 {
 	// TODO: 在此添加控件通知处理程序代码
 	CFileDialog file(TRUE,"文件","search.idx",OFN_HIDEREADONLY,"FILE(*.*)|*.*||",NULL);
-	if(file.DoModal()==IDOK)
-	{
+	if(file.DoModal()==IDOK) {
 		CString pathname;
 
 		pathname=file.GetPathName();
@@ -427,8 +440,7 @@ void CJencodeDlg::OnBnClickedTransIdx()
 
 	UpdateData(TRUE);
 	GetDlgItem(IDC_IDX_PATH)->GetWindowText(m_fsPath);
-	if (m_fsPath.GetLength() == 0)
-	{
+	if (m_fsPath.GetLength() == 0) {
 		MessageBox("请选择索引文件...");
 		return;
 	}

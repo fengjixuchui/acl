@@ -32,6 +32,14 @@
 		07BED4D421BA27B70060BBE4 /* fiber_cond.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4D321BA27B70060BBE4 /* fiber_cond.hpp */; };
 		07BED4D621BA27BE0060BBE4 /* fiber_tbox.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4D521BA27BE0060BBE4 /* fiber_tbox.hpp */; };
 		07BED4D821BA27C30060BBE4 /* libfiber.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4D721BA27C30060BBE4 /* libfiber.hpp */; };
+		07BED4DD22AFCAF40060BBE4 /* tcp_keeper.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4DC22AFCAF40060BBE4 /* tcp_keeper.hpp */; };
+		07BED4E622AFCB060060BBE4 /* keeper.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4DF22AFCB060060BBE4 /* keeper.hpp */; };
+		07BED4E722AFCB060060BBE4 /* keeper_conn.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07BED4E022AFCB060060BBE4 /* keeper_conn.cpp */; };
+		07BED4E822AFCB060060BBE4 /* keeper_conn.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4E122AFCB060060BBE4 /* keeper_conn.hpp */; };
+		07BED4E922AFCB060060BBE4 /* keeper_conns.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07BED4E222AFCB060060BBE4 /* keeper_conns.cpp */; };
+		07BED4EA22AFCB060060BBE4 /* keeper_conns.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4E322AFCB060060BBE4 /* keeper_conns.hpp */; };
+		07BED4EB22AFCB060060BBE4 /* keeper_waiter.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 07BED4E422AFCB060060BBE4 /* keeper_waiter.cpp */; };
+		07BED4EC22AFCB060060BBE4 /* keeper_waiter.hpp in Headers */ = {isa = PBXBuildFile; fileRef = 07BED4E522AFCB060060BBE4 /* keeper_waiter.hpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -61,6 +69,14 @@
 		07BED4D321BA27B70060BBE4 /* fiber_cond.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = fiber_cond.hpp; sourceTree = "<group>"; };
 		07BED4D521BA27BE0060BBE4 /* fiber_tbox.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = fiber_tbox.hpp; sourceTree = "<group>"; };
 		07BED4D721BA27C30060BBE4 /* libfiber.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = libfiber.hpp; sourceTree = "<group>"; };
+		07BED4DC22AFCAF40060BBE4 /* tcp_keeper.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = tcp_keeper.hpp; sourceTree = "<group>"; };
+		07BED4DF22AFCB060060BBE4 /* keeper.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = keeper.hpp; sourceTree = "<group>"; };
+		07BED4E022AFCB060060BBE4 /* keeper_conn.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = keeper_conn.cpp; sourceTree = "<group>"; };
+		07BED4E122AFCB060060BBE4 /* keeper_conn.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = keeper_conn.hpp; sourceTree = "<group>"; };
+		07BED4E222AFCB060060BBE4 /* keeper_conns.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = keeper_conns.cpp; sourceTree = "<group>"; };
+		07BED4E322AFCB060060BBE4 /* keeper_conns.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = keeper_conns.hpp; sourceTree = "<group>"; };
+		07BED4E422AFCB060060BBE4 /* keeper_waiter.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = keeper_waiter.cpp; sourceTree = "<group>"; };
+		07BED4E522AFCB060060BBE4 /* keeper_waiter.hpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.h; path = keeper_waiter.hpp; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -95,6 +111,7 @@
 		070F35E520902D9800672EDC /* fiber_cpp */ = {
 			isa = PBXGroup;
 			children = (
+				07BED4DE22AFCB060060BBE4 /* keeper */,
 				070F35E620902D9800672EDC /* fiber_cpp.h */,
 				070F35E820902D9800672EDC /* fiber_cppPriv.h */,
 				070F35EA20902D9800672EDC /* fiber_cpp.cp */,
@@ -131,6 +148,7 @@
 		070F35F320902DDC00672EDC /* fiber */ = {
 			isa = PBXGroup;
 			children = (
+				07BED4DC22AFCAF40060BBE4 /* tcp_keeper.hpp */,
 				07BED4D721BA27C30060BBE4 /* libfiber.hpp */,
 				07BED4D521BA27BE0060BBE4 /* fiber_tbox.hpp */,
 				07BED4D321BA27B70060BBE4 /* fiber_cond.hpp */,
@@ -147,6 +165,21 @@
 			path = ../lib_fiber/cpp/include/fiber;
 			sourceTree = "<group>";
 		};
+		07BED4DE22AFCB060060BBE4 /* keeper */ = {
+			isa = PBXGroup;
+			children = (
+				07BED4DF22AFCB060060BBE4 /* keeper.hpp */,
+				07BED4E022AFCB060060BBE4 /* keeper_conn.cpp */,
+				07BED4E122AFCB060060BBE4 /* keeper_conn.hpp */,
+				07BED4E222AFCB060060BBE4 /* keeper_conns.cpp */,
+				07BED4E322AFCB060060BBE4 /* keeper_conns.hpp */,
+				07BED4E422AFCB060060BBE4 /* keeper_waiter.cpp */,
+				07BED4E522AFCB060060BBE4 /* keeper_waiter.hpp */,
+			);
+			name = keeper;
+			path = cpp/src/keeper;
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXGroup section */
 
 /* Begin PBXHeadersBuildPhase section */
@@ -160,13 +193,18 @@
 				070F35E720902D9800672EDC /* fiber_cpp.h in Headers */,
 				07BED4D621BA27BE0060BBE4 /* fiber_tbox.hpp in Headers */,
 				070F35FD20902DDC00672EDC /* fiber.hpp in Headers */,
+				07BED4DD22AFCAF40060BBE4 /* tcp_keeper.hpp in Headers */,
 				07BED4D421BA27B70060BBE4 /* fiber_cond.hpp in Headers */,
 				070F360220902DDC00672EDC /* lib_fiber.hpp in Headers */,
+				07BED4EA22AFCB060060BBE4 /* keeper_conns.hpp in Headers */,
+				07BED4EC22AFCB060060BBE4 /* keeper_waiter.hpp in Headers */,
 				070F35FE20902DDC00672EDC /* fiber_cpp_define.hpp in Headers */,
+				07BED4E822AFCB060060BBE4 /* keeper_conn.hpp in Headers */,
 				07BED4D821BA27C30060BBE4 /* libfiber.hpp in Headers */,
 				070F360320902DDC00672EDC /* master_fiber.hpp in Headers */,
 				070F360020902DDC00672EDC /* fiber_lock.hpp in Headers */,
 				070F360120902DDC00672EDC /* fiber_sem.hpp in Headers */,
+				07BED4E622AFCB060060BBE4 /* keeper.hpp in Headers */,
 				070F361720902FDA00672EDC /* stdafx.hpp in Headers */,
 				070F361320902FDA00672EDC /* fiber_server.hpp in Headers */,
 			);
@@ -198,7 +236,7 @@
 		070F35DB20902D9800672EDC /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
-				LastUpgradeCheck = 0610;
+				LastUpgradeCheck = 1030;
 				ORGANIZATIONNAME = zsx;
 				TargetAttributes = {
 					070F35E220902D9800672EDC = {
@@ -208,10 +246,11 @@
 			};
 			buildConfigurationList = 070F35DE20902D9800672EDC /* Build configuration list for PBXProject "fiber_cpp" */;
 			compatibilityVersion = "Xcode 3.2";
-			developmentRegion = English;
+			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 070F35DA20902D9800672EDC;
 			productRefGroup = 070F35E420902D9800672EDC /* Products */;
@@ -231,11 +270,14 @@
 				070F361620902FDA00672EDC /* stdafx.cpp in Sources */,
 				070F360F20902FDA00672EDC /* fiber_event.cpp in Sources */,
 				070F35EB20902D9800672EDC /* fiber_cpp.cp in Sources */,
+				07BED4E722AFCB060060BBE4 /* keeper_conn.cpp in Sources */,
 				070F361420902FDA00672EDC /* fiber.cpp in Sources */,
 				07BED4D221BA278D0060BBE4 /* fiber_cond.cpp in Sources */,
 				070F360E20902FDA00672EDC /* channel.cpp in Sources */,
 				070F361520902FDA00672EDC /* master_fiber.cpp in Sources */,
 				070F361020902FDA00672EDC /* fiber_lock.cpp in Sources */,
+				07BED4E922AFCB060060BBE4 /* keeper_conns.cpp in Sources */,
+				07BED4EB22AFCB060060BBE4 /* keeper_waiter.cpp in Sources */,
 				070F361120902FDA00672EDC /* fiber_sem.cpp in Sources */,
 				070F361220902FDA00672EDC /* fiber_server.cpp in Sources */,
 			);
@@ -248,23 +290,36 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
 				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"DEBUG=1",
@@ -277,10 +332,11 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				MTL_ENABLE_DEBUG_INFO = YES;
 				ONLY_ACTIVE_ARCH = YES;
-				SDKROOT = macosx;
+				SDKROOT = iphoneos;
 			};
 			name = Debug;
 		};
@@ -288,17 +344,28 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_LOCALIZABILITY_NONLOCALIZED = YES;
 				CLANG_CXX_LANGUAGE_STANDARD = "gnu++0x";
 				CLANG_CXX_LIBRARY = "libc++";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
 				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
 				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
 				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
 				CLANG_WARN_EMPTY_BODY = YES;
 				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
 				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
 				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = YES;
@@ -306,15 +373,17 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu99;
+				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
 				GCC_WARN_UNDECLARED_SELECTOR = YES;
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				MACOSX_DEPLOYMENT_TARGET = 10.10;
 				MTL_ENABLE_DEBUG_INFO = NO;
-				SDKROOT = macosx;
+				SDKROOT = iphoneos;
 			};
 			name = Release;
 		};
@@ -333,6 +402,7 @@
 					"$(inherited)",
 					../lib_acl/src/master,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 			};
@@ -353,6 +423,7 @@
 					"$(inherited)",
 					../lib_acl/src/master,
 				);
+				IPHONEOS_DEPLOYMENT_TARGET = 8.0;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 			};
