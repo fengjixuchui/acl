@@ -1,22 +1,6 @@
 #pragma once
 
-////////////////////////////////////////////////////////////////////////////////
-// 配置内容项
-
-extern char *var_cfg_str;
-extern acl::master_str_tbl var_conf_str_tab[];
-
-extern int  var_cfg_bool;
-extern acl::master_bool_tbl var_conf_bool_tab[];
-
-extern acl::master_int_tbl var_conf_int_tab[];
-
-extern long long int  var_cfg_int64;
-extern acl::master_int64_tbl var_conf_int64_tab[];
-
-////////////////////////////////////////////////////////////////////////////////
-
-//class acl::socket_stream;
+class http_service;
 
 class master_service : public acl::master_proc
 {
@@ -24,7 +8,13 @@ public:
 	master_service(void);
 	~master_service(void);
 
-	static void do_cgi(void);
+	http_service& get_service(void) const;
+
+public:
+	/**
+	 * 当以 CGI 方式运行时的入口
+	 */
+	void do_cgi(void);
 
 protected:
 	/**
@@ -60,4 +50,7 @@ protected:
 	 * 当进程收到 SIGHUP 信号后的回调函数
 	 */
 	bool proc_on_sighup(acl::string&);
+
+private:
+	http_service* service_;
 };

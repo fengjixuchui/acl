@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "http_service.h"
 #include "http_servlet.h"
 #include "master_service.h"
 
@@ -35,10 +36,17 @@ acl::master_int64_tbl var_conf_int64_tab[] = {
 
 master_service::master_service(void)
 {
+	service_ = new http_service;
 }
 
 master_service::~master_service(void)
 {
+	delete service_;
+}
+
+http_service& master_service::get_service(void) const
+{
+	return *service_;
 }
 
 void master_service::on_accept(acl::socket_stream& conn)
@@ -48,7 +56,7 @@ void master_service::on_accept(acl::socket_stream& conn)
 	conn.set_rw_timeout(120);
 
 	acl::memcache_session session("127.0.0.1:11211");
-	http_servlet servlet(&conn, &session);
+	http_servlet servlet(service_->get_handlers(), &conn, &session);
 
 	// charset: big5, gb2312, gb18030, gbk, utf-8
 	servlet.setLocalCharset("utf-8");

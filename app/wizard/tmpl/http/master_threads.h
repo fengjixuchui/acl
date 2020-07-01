@@ -1,28 +1,14 @@
 #pragma once
 
-////////////////////////////////////////////////////////////////////////////////
-// 配置内容项
-
-extern char *var_cfg_str;
-extern acl::master_str_tbl var_conf_str_tab[];
-
-extern int  var_cfg_bool;
-extern acl::master_bool_tbl var_conf_bool_tab[];
-
-extern acl::master_int_tbl var_conf_int_tab[];
-
-extern long long int  var_cfg_int64;
-extern acl::master_int64_tbl var_conf_int64_tab[];
-
-////////////////////////////////////////////////////////////////////////////////
-
-//class acl::socket_stream;
+class http_service;
 
 class master_service : public acl::master_threads
 {
 public:
 	master_service(void);
 	~master_service(void);
+
+	http_service& get_service(void) const;
 
 protected:
 	/**
@@ -117,4 +103,6 @@ protected:
 private:
 	// redis 集群对象
 	acl::redis_client_cluster* redis_;
+
+	http_service* service_;
 };

@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "http_service.h"
 #include "http_servlet.h"
 #include "master_service.h"
 
@@ -40,11 +41,18 @@ acl::master_int64_tbl var_conf_int64_tab[] = {
 
 master_service::master_service(void)
 {
-	redis_ = NULL;
+	redis_   = NULL;
+	service_ = new http_service;
 }
 
 master_service::~master_service(void)
 {
+	delete service_;
+}
+
+http_service& master_service::get_service(void) const
+{
+	return *service_;
 }
 
 bool master_service::thread_on_read(acl::socket_stream* conn)
@@ -74,7 +82,8 @@ bool master_service::thread_on_accept(acl::socket_stream* conn)
 		session = new acl::memcache_session("127.0.0.1:11211");
 	}
 
-	http_servlet* servlet = new http_servlet(conn, session);
+	http_servlet* servlet = new http_servlet(service_->get_handlers(),
+					conn, session);
 	conn->set_ctx(servlet);
 
 	return true;
