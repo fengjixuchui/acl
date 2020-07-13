@@ -233,9 +233,61 @@ int acl_socket_writev(ACL_SOCKET fd, const struct iovec *vec, int count,
 }
 
 /* for vc2003 */
+
 #if _MSC_VER <= 1310
 #include <winsock2.h>
 #include <ws2tcpip.h>
+
+int WSAAPI WSAPoll(LPWSAPOLLFD fds, ULONG nfds, INT timeout) {
+	int ret;
+	unsigned long i;
+	struct timeval tv, *ptv;
+
+	FD_SET rset;
+	FD_SET wset;
+	FD_SET eset;
+
+	FD_ZERO(&rset);
+	FD_ZERO(&wset);
+	FD_ZERO(&eset);
+
+	for (i = 0; i < nfds; i++) {
+		if (fds[i].events & POLLRDNORM) {
+			FD_SET(fds[i].fd, &rset);
+		}
+		if (fds[i].events & POLLWRNORM) {
+			FD_SET(fds[i].fd, &wset);
+		}
+		FD_SET(fds[i].fd, &eset);
+	}
+
+	if (timeout >= 0) {
+		tv.tv_sec  = timeout / 1000;
+		tv.tv_usec = (timeout % 1000) * 1000;
+		ptv = &tv;
+	} else {
+		ptv = NULL;
+	}
+
+	ret = select((int) fds, &rset, &wset, &eset, ptv);
+	if (ret == SOCKET_ERROR) {
+		return SOCKET_ERROR;
+	}
+
+	for(i = 0; i < nfds; i++) {
+		if ((fds[i].events & POLLRDNORM) && FD_ISSET(fds[i].fd, &rset)) {
+			fds[i].revents |= POLLRDNORM;
+		}
+		if ((fds[i].events & POLLWRNORM) && FD_ISSET(fds[i].fd, &wset)) {
+			fds[i].revents |= POLLWRNORM;
+		}
+		if (FD_ISSET(fds[i].fd, &eset)) {
+			fds[i].revents |= POLLERR;
+		}
+	}
+
+	return ret;
+}
 
 int inet_pton(int af, const char *src, void *dst)
 {
