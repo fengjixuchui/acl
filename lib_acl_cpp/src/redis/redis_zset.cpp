@@ -16,7 +16,6 @@ namespace acl
 #define INTLEN	11
 
 redis_zset::redis_zset()
-: redis_command(NULL)
 {
 }
 
@@ -25,8 +24,13 @@ redis_zset::redis_zset(redis_client* conn)
 {
 }
 
-redis_zset::redis_zset(redis_client_cluster* cluster, size_t max_conns)
-: redis_command(cluster, max_conns)
+redis_zset::redis_zset(redis_client_cluster* cluster)
+: redis_command(cluster)
+{
+}
+
+redis_zset::redis_zset(redis_client_cluster* cluster, size_t)
+: redis_command(cluster)
 {
 }
 
@@ -926,7 +930,6 @@ int redis_zset::zstore(const char* cmd, const char* dst,
 	for (; cit != keys.end(); ++cit, i++) {
 		argv[i] = cit->first.c_str();
 		lens[i] = cit->first.length();
-		i++;
 	}
 
 	argv[i] = "WEIGHTS";

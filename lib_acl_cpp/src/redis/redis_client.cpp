@@ -2,6 +2,7 @@
 #ifndef ACL_PREPARE_COMPILE
 #include "acl_cpp/stdlib/dbuf_pool.hpp"
 #include "acl_cpp/stdlib/util.hpp"
+#include "acl_cpp/stdlib/string.hpp"
 #include "acl_cpp/stdlib/log.hpp"
 #include "acl_cpp/stdlib/snprintf.hpp"
 #include "acl_cpp/stream/socket_stream.hpp"
@@ -171,93 +172,99 @@ void redis_client::set_slice_respond(bool on)
 
 /////////////////////////////////////////////////////////////////////////////
 
-void redis_client::put_data(dbuf_pool* pool, redis_result* rr,
+void redis_client::put_data(dbuf_pool* dbuf, redis_result* rr,
 	const char* data, size_t len)
 {
-	char* buf = (char*) pool->dbuf_alloc(len + 1);
+	char* buf = (char*) dbuf->dbuf_alloc(len + 1);
 	if (len > 0)
 		memcpy(buf, data, len);
 	buf[len] = 0;
 	rr->put(buf, len);
 }
 
-redis_result* redis_client::get_redis_error(dbuf_pool* pool)
+redis_result* redis_client::get_error(socket_stream& conn, dbuf_pool* dbuf)
 {
-	buf_.clear();
-	if (conn_.gets(buf_) == false) {
-		logger_error("gets line error, server: %s", addr_);
+	string& buf = conn.get_buf();
+	buf.clear();
+	if (conn_.gets(buf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
 	}
 
-	redis_result* rr = new(pool) redis_result(pool);
+	redis_result* rr = new(dbuf) redis_result(dbuf);
 	rr->set_type(REDIS_RESULT_ERROR);
 	rr->set_size(1);
 
-	put_data(pool, rr, buf_.c_str(), buf_.length());
+	put_data(dbuf, rr, buf.c_str(), buf.length());
 	return rr;
 }
 
-redis_result* redis_client::get_redis_status(dbuf_pool* pool)
+redis_result* redis_client::get_status(socket_stream& conn, dbuf_pool* dbuf)
 {
-	buf_.clear();
-	if (conn_.gets(buf_) == false) {
-		logger_error("gets line error, server: %s", addr_);
+	string& buf = conn.get_buf();
+	buf.clear();
+	if (conn_.gets(buf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
 	}
 
-	redis_result* rr = new(pool) redis_result(pool);
+	redis_result* rr = new(dbuf) redis_result(dbuf);
 	rr->set_type(REDIS_RESULT_STATUS);
 	rr->set_size(1);
 
-	put_data(pool, rr, buf_.c_str(), buf_.length());
+	put_data(dbuf, rr, buf.c_str(), buf.length());
 	return rr;
 }
 
-redis_result* redis_client::get_redis_integer(dbuf_pool* pool)
+redis_result* redis_client::get_integer(socket_stream& conn, dbuf_pool* dbuf)
 {
-	buf_.clear();
-	if (conn_.gets(buf_) == false) {
-		logger_error("gets line error, server: %s", addr_);
+	string& buf = conn.get_buf();
+	buf.clear();
+	if (conn_.gets(buf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
 	}
 
-	redis_result* rr = new(pool) redis_result(pool);
+	redis_result* rr = new(dbuf) redis_result(dbuf);
 	rr->set_type(REDIS_RESULT_INTEGER);
 	rr->set_size(1);
 
-	put_data(pool, rr, buf_.c_str(), buf_.length());
+	put_data(dbuf, rr, buf.c_str(), buf.length());
 	return rr;
 }
 
-redis_result* redis_client::get_redis_string(dbuf_pool* pool)
+redis_result* redis_client::get_string(socket_stream& conn, dbuf_pool* dbuf)
 {
-	buf_.clear();
-	if (conn_.gets(buf_) == false) {
-		logger_error("gets line error, server: %s", addr_);
+	string& sbuf = conn.get_buf();
+	sbuf.clear();
+	if (conn_.gets(sbuf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
 	}
-	redis_result* rr = new(pool) redis_result(pool);
+	redis_result* rr = new(dbuf) redis_result(dbuf);
 	rr->set_type(REDIS_RESULT_STRING);
-	int len = atoi(buf_.c_str());
+	int len = atoi(sbuf.c_str());
 	if (len < 0)
 		return rr;
 
-	char*  buf;
+	char* buf;
 
 	if (!slice_res_) {
 		rr->set_size(1);
-		buf = (char*) pool->dbuf_alloc(len + 1);
+		buf = (char*) dbuf->dbuf_alloc(len + 1);
 		if (len > 0 && conn_.read(buf, (size_t) len) == -1) {
-			logger_error("read data error, server: %s", addr_);
+			logger_error("read error, server: %s",
+				conn.get_peer(true));
 			return NULL;
 		}
 		buf[len] = 0;
 		rr->put(buf, (size_t) len);
 
 		// 读 \r\n
-		buf_.clear();
-		if (conn_.gets(buf_) == false) {
-			logger_error("gets line error, server: %s", addr_);
+		sbuf.clear();
+		if (conn_.gets(sbuf) == false) {
+			logger_error("gets error, server: %s",
+				conn.get_peer(true));
 			return NULL;
 		}
 		return rr;
@@ -275,9 +282,10 @@ redis_result* redis_client::get_redis_string(dbuf_pool* pool)
 
 	while (len > 0) {
 		n = len > CHUNK_LENGTH - 1 ? CHUNK_LENGTH - 1 : len;
-		buf = (char*) pool->dbuf_alloc((size_t) (n + 1));
+		buf = (char*) dbuf->dbuf_alloc((size_t) (n + 1));
 		if (conn_.read(buf, (size_t) n) == -1) {
-			logger_error("read data error, server: %s", addr_);
+			logger_error("read data error, server: %s",
+				conn.get_peer(true));
 			return NULL;
 		}
 		buf[n] = 0;
@@ -285,30 +293,33 @@ redis_result* redis_client::get_redis_string(dbuf_pool* pool)
 		len -= n;
 	}
 	
-	buf_.clear();
-	if (conn_.gets(buf_) == false) {
-		logger_error("gets line error, server: %s", addr_);
+	sbuf.clear();
+	if (conn_.gets(sbuf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
 	}
 	return rr;
 }
 
-redis_result* redis_client::get_redis_array(dbuf_pool* pool)
+redis_result* redis_client::get_array(socket_stream& conn, dbuf_pool* dbuf)
 {
-	buf_.clear();
-	if (conn_.gets(buf_) == false)
+	string& buf = conn.get_buf();
+	buf.clear();
+	if (conn.gets(buf) == false) {
+		logger_error("gets error, server: %s", conn.get_peer(true));
 		return NULL;
+	}
 
-	redis_result* rr = new(pool) redis_result(pool);
+	redis_result* rr = new(dbuf) redis_result(dbuf);
 	rr->set_type(REDIS_RESULT_ARRAY);
-	int count = atoi(buf_.c_str());
+	int count = atoi(buf.c_str());
 	if (count <= 0)
 		return rr;
 
 	rr->set_size((size_t) count);
 
 	for (int i = 0; i < count; i++) {
-		redis_result* child = get_redis_object(pool);
+		redis_result* child = get_object(conn, dbuf);
 		if (child == NULL)
 			return NULL;
 		rr->put(child, i);
@@ -317,42 +328,44 @@ redis_result* redis_client::get_redis_array(dbuf_pool* pool)
 	return rr;
 }
 
-redis_result* redis_client::get_redis_object(dbuf_pool* pool)
+redis_result* redis_client::get_object(socket_stream& conn, dbuf_pool* dbuf)
 {
 	char ch;
-	if (conn_.read(ch) == false) {
+	if (conn.read(ch) == false) {
 		logger_warn("read char error: %s, server: %s, fd: %u",
-			last_serror(), addr_, (unsigned) conn_.sock_handle());
+			last_serror(), conn.get_peer(true),
+			(unsigned) conn.sock_handle());
 		return NULL;
 	}
 
 	switch (ch) {
 	case '-':	// ERROR
-		return get_redis_error(pool);
+		return get_error(conn, dbuf);
 	case '+':	// STATUS
-		return get_redis_status(pool);
+		return get_status(conn, dbuf);
 	case ':':	// INTEGER
-		return get_redis_integer(pool);
+		return get_integer(conn, dbuf);
 	case '$':	// STRING
-		return get_redis_string(pool);
+		return get_string(conn, dbuf);
 	case '*':	// ARRAY
-		return get_redis_array(pool);
+		return get_array(conn, dbuf);
 	default:	// INVALID
 		logger_error("invalid first char: %c, %d", ch, ch);
 		return NULL;
 	}
 }
 
-redis_result* redis_client::get_redis_objects(dbuf_pool* pool, size_t nobjs)
+redis_result* redis_client::get_objects(socket_stream& conn,
+	dbuf_pool* dbuf, size_t nobjs)
 {
 	acl_assert(nobjs >= 1);
 
-	redis_result* objs = new(pool) redis_result(pool);
+	redis_result* objs = new(dbuf) redis_result(dbuf);
 	objs->set_type(REDIS_RESULT_ARRAY);
 	objs->set_size(nobjs);
 
 	for (size_t i = 0; i < nobjs; i++) {
-		redis_result* obj = get_redis_object(pool);
+		redis_result* obj = get_object(conn, dbuf);
 		if (obj == NULL)
 			return NULL;
 		objs->put(obj, i);
@@ -360,7 +373,7 @@ redis_result* redis_client::get_redis_objects(dbuf_pool* pool, size_t nobjs)
 	return objs;
 }
 
-const redis_result* redis_client::run(dbuf_pool* pool, const string& req,
+const redis_result* redis_client::run(dbuf_pool* dbuf, const string& req,
 	size_t nchildren, int* rw_timeout /* = NULL */)
 {
 	// 重置协议处理状态
@@ -396,9 +409,9 @@ const redis_result* redis_client::run(dbuf_pool* pool, const string& req,
 			return NULL;
 		}
 		if (nchildren >= 1)
-			result = get_redis_objects(pool, nchildren);
+			result = get_objects(conn_, dbuf, nchildren);
 		else
-			result = get_redis_object(pool);
+			result = get_object(conn_, dbuf);
 		if (result != NULL) {
 			if (rw_timeout != NULL)
 				conn_.set_rw_timeout(rw_timeout_);
@@ -436,7 +449,7 @@ const redis_result* redis_client::run(dbuf_pool* pool, const string& req,
 	return NULL;
 }
 
-const redis_result* redis_client::run(dbuf_pool* pool, const redis_request& req,
+const redis_result* redis_client::run(dbuf_pool* dbuf, const redis_request& req,
 	size_t nchildren, int* rw_timeout /* = NULL */)
 {
 	// 重置协议处理状态
@@ -474,9 +487,9 @@ const redis_result* redis_client::run(dbuf_pool* pool, const redis_request& req,
 		}
 
 		if (nchildren >= 1)
-			result = get_redis_objects(pool, nchildren);
+			result = get_objects(conn_, dbuf, nchildren);
 		else
-			result = get_redis_object(pool);
+			result = get_object(conn_, dbuf);
 
 		if (result != NULL) {
 			if (rw_timeout != NULL)

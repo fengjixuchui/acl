@@ -32,9 +32,12 @@ public:
 	redis_hash(redis_client* conn);
 
 	/**
-	 * see redis_command::redis_command(redis_client_cluster*, size_t)
+	 * see redis_command::redis_command(redis_client_cluster*)
 	 */
-	redis_hash(redis_client_cluster* cluster, size_t max_conns = 0);
+	redis_hash(redis_client_cluster* cluster);
+
+	ACL_CPP_DEPRECATED
+	redis_hash(redis_client_cluster* cluster, size_t max_conns);
 
 	virtual ~redis_hash(void);
 
@@ -50,8 +53,13 @@ public:
 	 *  if successful for HMSET command
 	 */
 	bool hmset(const char* key, const std::map<string, string>& attrs);
+	bool hmset(const char* key, size_t klen,
+		const std::map<string, string>& attrs);
 	bool hmset(const char* key, const std::map<string, const char*>& attrs);
 	bool hmset(const char* key, const std::vector<string>& names,
+		const std::vector<string>& values);
+	bool hmset(const char* key, size_t klen,
+		const std::vector<string>& names,
 		const std::vector<string>& values);
 	bool hmset(const char* key, const std::vector<const char*>& names,
 		const std::vector<const char*>& values);
@@ -59,6 +67,9 @@ public:
 		size_t argc);
 	bool hmset(const char* key, const char* names[], const size_t names_len[],
 		const char* values[], const size_t values_len[], size_t argc);
+	bool hmset(const char* key, size_t klen, const char* names[],
+		const size_t names_len[], const char* values[],
+		const size_t values_len[], size_t argc);
 
 	/////////////////////////////////////////////////////////////////////
 
@@ -107,12 +118,18 @@ public:
 	 */
 	bool hmget(const char* key, const std::vector<string>& names,
 		std::vector<string>* result = NULL);
+	bool hmget(const char* key, size_t klen,
+		const std::vector<string>& names,
+		std::vector<string>* result = NULL);
 	bool hmget(const char* key, const std::vector<const char*>& names,
 		std::vector<string>* result = NULL);
 
 	bool hmget(const char* key, const char* names[], size_t argc,
 		std::vector<string>* result = NULL);
 	bool hmget(const char* key, const char* names[], const size_t lens[],
+		size_t argc, std::vector<string>* result = NULL);
+	bool hmget(const char* key, size_t klen,
+		const char* names[], const size_t lens[],
 		size_t argc, std::vector<string>* result = NULL);
 
 	/////////////////////////////////////////////////////////////////////
@@ -140,6 +157,8 @@ public:
 		const char* value, size_t value_len);
 	int hset(const char* key, const char* name, size_t name_len,
 		const char* value, size_t value_len);
+	int hset(const char* key, size_t klen, const char* name,
+		size_t name_len, const char* value, size_t value_len);
 
 	/**
 	 * 当且仅当 key 对象中的某个域字段不存在时才更新该域字段值
@@ -166,6 +185,8 @@ public:
 		const char* value, size_t value_len);
 	int hsetnx(const char* key, const char* name, size_t name_len,
 		const char* value, size_t value_len);
+	int hsetnx(const char* key, size_t klen, const char* name,
+		size_t name_len, const char* value, size_t value_len);
 
 	/**
 	 * 从 redis 哈希表中获取某个 key 对象的某个域的值
@@ -187,6 +208,8 @@ public:
 	bool hget(const char* key, const char* name, string& result);
 	bool hget(const char* key, const char* name,
 		size_t name_len, string& result);
+	bool hget(const char* key, size_t klen, const char* name,
+		size_t name_len, string& result);
 
 	/**
 	 * 从 redis 哈希表中获取某个 key 对象的所有域字段的值
@@ -204,8 +227,12 @@ public:
 	 *           error happened or the key isn't a hash key
 	 */
 	bool hgetall(const char* key, std::map<string, string>& result);
+	bool hgetall(const char* key, size_t klen,
+		std::map<string, string>& result);
 	bool hgetall(const char* key, std::vector<string>& names,
 		std::vector<string>& values);
+	bool hgetall(const char* key, size_t klen,
+		std::vector<string>& names, std::vector<string>& values);
 	bool hgetall(const char* key, std::vector<const char*>& names,
 		std::vector<const char*>& values);
 
@@ -225,12 +252,19 @@ public:
 	int hdel(const char* key, const char* names[], size_t argc);
 	int hdel(const char* key, const char* names[],
 		const size_t names_len[], size_t argc);
+	int hdel(const char* key, size_t klen, const char* names[],
+		const size_t names_len[], size_t argc);
 	int hdel(const char* key, const std::vector<string>& names);
+	int hdel(const char* key, size_t klen, const std::vector<string>& names);
 	int hdel(const char* key, const std::vector<const char*>& names);
 	int hdel_fields(const char* key, const char* names[], size_t argc);
 	int hdel_fields(const char* key, const char* names[],
 		const size_t names_len[], size_t argc);
+	int hdel_fields(const char* key, size_t klen,
+		const char* names[], const size_t names_len[], size_t argc);
 	int hdel_fields(const char* key, const std::vector<string>& names);
+	int hdel_fields(const char* key, size_t klen,
+		const std::vector<string>& names);
 	int hdel_fields(const char* key, const std::vector<const char*>& names);
 	int hdel_fields(const char* key, const char* first_name, ...);
 
@@ -284,6 +318,7 @@ public:
 	 *  key wasn't a hash key
 	 */
 	bool hkeys(const char* key, std::vector<string>& names);
+	bool hkeys(const char* key, size_t klen, std::vector<string>& names);
 
 	/**
 	 * 检查 key 对象中某个域字段是否存在
@@ -299,6 +334,7 @@ public:
 	 */
 	bool hexists(const char* key, const char* name);
 	bool hexists(const char* key, const char* name, size_t name_len);
+	bool hexists(const char* key, size_t klen, const char* name, size_t name_len);
 
 	/**
 	 * 获得指定 key 的所有字段值
@@ -311,6 +347,7 @@ public:
 	 *  return true on success, or failed when error happened
 	 */
 	bool hvals(const char* key, std::vector<string>& values);
+	bool hvals(const char* key, size_t klen, std::vector<string>& values);
 
 	/**
 	 * 获得某个 key 对象中所有域字段的数量
@@ -327,6 +364,7 @@ public:
 	 *        key not exists or no fields in hash stored at key 
 	 */
 	int hlen(const char* key);
+	int hlen(const char* key, size_t klen);
 
 	/**
 	 * 获得某个 key 中的指定域的数据长度
@@ -342,6 +380,7 @@ public:
 	 *  not the hash key or error happened, -1 is returned.
 	 */
 	int hstrlen(const char* key, const char* name, size_t name_len);
+	int hstrlen(const char* key, size_t klen, const char* name, size_t name_len);
 	int hstrlen(const char* key, const char *name);
 	
 	/**
@@ -370,6 +409,9 @@ public:
 	 */
 	int hscan(const char* key, int cursor, std::map<string, string>& out,
 		const char* pattern = NULL, const size_t* count = NULL);
+	int hscan(const char* key, size_t klen, int cursor,
+		std::map<string, string>& out, const char* pattern = NULL,
+		const size_t* count = NULL);
 };
 
 } // namespace acl
