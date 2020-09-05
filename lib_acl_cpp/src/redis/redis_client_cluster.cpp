@@ -239,8 +239,9 @@ redis_client* redis_client_cluster::redirect(const char* addr, size_t max_conns)
 		conns = (redis_client_pool*) this->get(addr);
 	}
 
-	if (conns == NULL)
+	if (conns == NULL) {
 		return NULL;
+	}
 
 	redis_client* conn;
 
@@ -248,8 +249,9 @@ redis_client* redis_client_cluster::redirect(const char* addr, size_t max_conns)
 
 	while (i++ < 5) {
 		conn = (redis_client*) conns->peek();
-		if (conn != NULL)
+		if (conn != NULL) {
 			return conn;
+		}
 
 #ifdef AUTO_SET_ALIVE
 		conns->set_alive(false);
@@ -371,7 +373,9 @@ redis_client* redis_client_cluster::move(redis_command& cmd,
 		return NULL;
 	}
 
-	const conn_config* conf = this->get_config(addr);
+	// 从连接池集合中提取目标redis节点的配置项，如果不存在，则默认使用
+	// 所设置的第一个redis节点的配置项
+	const conn_config* conf = this->get_config(addr, true);
 	if (conf == NULL) {
 		logger_error("no conn_config for addr=%s", addr);
 		return NULL;
@@ -411,7 +415,9 @@ redis_client* redis_client_cluster::ask(redis_command& cmd,
 		return NULL;
 	}
 
-	const conn_config* conf = this->get_config(addr);
+	// 从连接池集合中提取目标redis节点的配置项，如果不存在，则默认使用
+	// 所设置的第一个redis节点的配置项
+	const conn_config* conf = this->get_config(addr, true);
 	if (conf == NULL) {
 		logger_error("no conn_config for addr=%s", addr);
 		return NULL;

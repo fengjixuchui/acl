@@ -271,14 +271,16 @@ bool polarssl_conf::load(void)
 	}
 	return true;
 #else
-	logger_warn("link polarssl library in statis way!");
-	return false;
+	logger_warn("link polarssl library in static way!");
+	return true;
 #endif
 }
 
 void polarssl_conf::init_once(void)
 {
+#ifdef HAS_POLARSSL_DLL
 	load();
+#endif
 
 	lock_.lock();
 	if (has_inited_) {
