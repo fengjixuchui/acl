@@ -61,6 +61,7 @@
 #  define SSL_LIST_CIPHERSUITES_NAME	"mbedtls_ssl_list_ciphersuites"
 
 #  define SSL_CONF_INIT_NAME		"mbedtls_ssl_config_init"
+#  define SSL_CONF_FREE_NAME		"mbedtls_ssl_config_free"
 #  define SSL_CONF_DEFAULTS_NAME	"mbedtls_ssl_config_defaults"
 #  define SSL_CONF_RNG_NAME		"mbedtls_ssl_conf_rng"
 #  define SSL_CONF_ENDPOINT_NAME	"mbedtls_ssl_conf_endpoint"
@@ -116,6 +117,7 @@ typedef int  (*x509_crt_parse_file_fn)(X509_CRT*, const char*);
 typedef const int* (*ssl_list_ciphersuites_fn)(void);
 
 typedef void (*ssl_config_init_fn)(mbedtls_ssl_config*);
+typedef void (*ssl_config_free_fn)(mbedtls_ssl_config*);
 typedef void (*ssl_conf_rng_fn)(mbedtls_ssl_config*,
 		int (*f_rng)(void*, unsigned char*, size_t), void *p_rng);
 typedef void (*ssl_conf_endpoint_fn)(mbedtls_ssl_config*, int);
@@ -169,6 +171,7 @@ static x509_crt_parse_file_fn		__x509_crt_parse_file;
 static ssl_list_ciphersuites_fn		__ssl_list_ciphersuites;
 
 static ssl_config_init_fn		__ssl_config_init;
+static ssl_config_free_fn		__ssl_config_free;
 static ssl_config_defaults_fn		__ssl_config_defaults;
 static ssl_conf_rng_fn			__ssl_conf_rng;
 static ssl_conf_endpoint_fn		__ssl_conf_endpoint;
@@ -308,6 +311,7 @@ static bool load_from_ssl(void)
 	LOAD_SSL(SSL_LIST_CIPHERSUITES_NAME, ssl_list_ciphersuites_fn, __ssl_list_ciphersuites);
 
 	LOAD_SSL(SSL_CONF_INIT_NAME, ssl_config_init_fn, __ssl_config_init);
+	LOAD_SSL(SSL_CONF_FREE_NAME, ssl_config_free_fn, __ssl_config_free);
 	LOAD_SSL(SSL_CONF_DEFAULTS_NAME, ssl_config_defaults_fn, __ssl_config_defaults);
 	LOAD_SSL(SSL_CONF_RNG_NAME, ssl_conf_rng_fn, __ssl_conf_rng);
 	LOAD_SSL(SSL_CONF_ENDPOINT_NAME, ssl_conf_endpoint_fn, __ssl_conf_endpoint);
@@ -439,6 +443,7 @@ static void mbedtls_dll_load(void)
 
 #  define __ssl_list_ciphersuites	::mbedtls_ssl_list_ciphersuites
 #  define __ssl_config_init		::mbedtls_ssl_config_init
+#  define __ssl_config_free		::mbedtls_ssl_config_free
 #  define __ssl_config_defaults		::mbedtls_ssl_config_defaults
 #  define __ssl_conf_rng		::mbedtls_ssl_conf_rng
 #  define __ssl_conf_endpoint		::mbedtls_ssl_conf_endpoint
@@ -713,6 +718,17 @@ mbedtls_conf::~mbedtls_conf(void)
 	if (init_status_ != CONF_INIT_NIL) {
 		__entropy_free((mbedtls_entropy_context*) entropy_);
 	}
+
+	for (size_t i = 0; i != cert_keys_.size(); i++) {
+		void* cert = cert_keys_[i].first;
+		__x509_crt_free((X509_CRT*) cert);
+		acl_myfree(cert);
+
+		void* pkey = cert_keys_[i].second;
+		__pk_free((PKEY*) pkey);
+		acl_myfree(pkey);
+	}
+	__ssl_config_free((mbedtls_ssl_config*) conf_);
 	acl_myfree(conf_);
 	acl_myfree(entropy_);
 
@@ -788,6 +804,70 @@ bool mbedtls_conf::load_ca(const char* ca_file, const char* ca_path)
 #else
 	(void) ca_file;
 	(void) ca_path;
+
+	logger_error("HAS_MBEDTLS not defined!");
+	return false;
+#endif
+}
+
+bool mbedtls_conf::append_key_cert(const char* crt_file, const char* key_file,
+	const char* key_pass)
+{
+	if (crt_file == NULL || crt_file[0] == '\0' ||
+		key_file == NULL || key_file[0] == '\0') {
+		logger_error("crt_file or key_file null");
+		return false;
+	}
+
+#ifdef HAS_MBEDTLS
+	int ret = 0;
+	X509_CRT *cert = NULL;
+	PKEY *pkey = NULL;
+
+	if (!init_once()) {
+		logger_error("init_once error");
+		return false;
+	}
+
+	cert = static_cast<X509_CRT*>(acl_mycalloc(1, sizeof(X509_CRT)));
+	__x509_crt_init(cert);
+	ret = __x509_crt_parse_file(cert, crt_file);
+	if (ret != 0) {
+		goto ERR;
+	}
+
+	pkey = static_cast<PKEY*>(acl_mycalloc(1, sizeof(PKEY)));
+	__pk_init(pkey);
+	ret = __pk_parse_keyfile(pkey, key_file, key_pass ? key_pass : "");
+	if (ret != 0) {
+		goto ERR;
+	}
+
+	ret = __ssl_conf_own_cert((mbedtls_ssl_config*)conf_, cert, pkey);
+	if (ret != 0) {
+		goto ERR;
+	}
+
+	cert_keys_.push_back(std::make_pair(cert, pkey));
+	cert_status_ = CONF_OWN_CERT_OK;
+	return true;
+ERR:
+	logger_error("append_key_cert(%s:%s) error: -0x%04x",
+		crt_file, key_file, -ret);
+	if (cert) {
+		__x509_crt_free(cert);
+		acl_myfree(cert);
+	}
+
+	if (pkey) {
+		__pk_free(pkey);
+		acl_myfree(pkey);
+	}
+	return false;
+#else
+	(void) crt_file;
+	(void) key_file;
+	(void) key_pass;
 
 	logger_error("HAS_MBEDTLS not defined!");
 	return false;

@@ -45,6 +45,12 @@ public:
 	/**
 	 * @override
 	 */
+	bool append_key_cert(const char* crt_file, const char* key_file,
+		const char* key_pass = NULL);
+
+	/**
+	 * @override
+	 */
 	bool add_cert(const char* crt_file);
 
 	/**
@@ -117,6 +123,7 @@ private:
 	void* cert_chain_;
 	void* cache_;
 	mbedtls_verify_t verify_mode_;
+	std::vector<std::pair<void*, void*> > cert_keys_;
 
 private:
 	bool init_once(void);
