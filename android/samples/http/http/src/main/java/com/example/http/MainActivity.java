@@ -78,8 +78,8 @@ public class MainActivity extends AppCompatActivity {
         clear.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-            // 清空结果显示区域
-            result.setText("");
+                // 清空结果显示区域
+                result.setText("");
             }
         });
     }
