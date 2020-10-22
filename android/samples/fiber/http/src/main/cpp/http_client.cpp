@@ -3,6 +3,9 @@
 //
 
 #include "stdafx.h"
+#include "http_task.h"
+#include "http_get.h"
+#include "fiber_waiter.h"
 #include "log.h"
 
 static void JString2String(JNIEnv *env, jstring js, std::string &out)
@@ -20,172 +23,93 @@ static jstring String2JString(JNIEnv *env, const char *s)
 
 ////////////////////////////////////////////////////////////////////////////////
 
-static bool http_get(
-        const std::string& server_addr,
-        const std::string& server_host,
-        const std::string& server_url,
-        acl::string& out)
-{
-#if 0
-    acl::http_request request(server_addr.c_str());
-#else
-    acl::http_request request("61.135.185.32:80");
-#endif
-    acl::http_header& header = request.request_header();
-    header.set_url(server_url.c_str())
-        .set_host(server_host.c_str())
-        .accept_gzip(true)
-        .set_keep_alive(false);
+static JavaVM* g_jvm   = NULL;
+static jobject g_fiber = NULL;
 
-    log_info("HttpGet: addr=%s, host=%s, url=%s", server_addr.c_str(),
-            server_host.c_str(), server_url.c_str());
-
-    if (!request.request(NULL, 0)) {
-        log_error("send http request error=%s", acl::last_serror());
-        return false;
+static JNIEnv* get_env(void) {
+    JNIEnv* env;
+    int status = g_jvm->GetEnv((void**) &env, JNI_VERSION_1_6);
+    if (status == JNI_EDETACHED || env == NULL) {
+        log_info("get_env: status=%d, %d, env=%p",
+                 status, JNI_EDETACHED, env);
+        status = g_jvm->AttachCurrentThread(&env, NULL);
+        if (status != JNI_OK || env == NULL) {
+            log_error("get_env: AttachCurrentThread failed");
+            return NULL;
+        }
+        log_info("get_env: status=%d, env=%p", status, env);
     }
 
-    if (!request.get_body(out)) {
-        log_error("get body error: %s", acl::last_serror());
-        return false;
+    if (env->ExceptionOccurred()) {
+        log_error("%d: some exception happened!", __LINE__);
+        env->ExceptionDescribe();
+        env->ExceptionClear();
+        return NULL;
     }
 
-    return true;
+    log_info("get_env: get env=%p ok, status=%d", env, status);
+    return env;
 }
 
-////////////////////////////////////////////////////////////////////////////////
+static void test1(void) {
+    log_info("test1: jvm=%p", g_jvm);
 
-class task {
-public:
-    task(JNIEnv* env, const char* addr, const char* host, const char* url)
-    : env_(env)
-    , server_addr_(addr)
-    , server_host_(host)
-    , server_url_(url)
-    , body_(NULL) {}
-    ~task(void) {
-        delete body_;
+    // 先获得当前线程所绑定的 JNIEnv 对象
+    JNIEnv* env = get_env();
+    if (env == NULL) {
+        log_error("test1: get_env null");
+        return;
     }
 
-    void push_result() {
-        box_.push(this);
+    const char* name = "com/example/http/HttpFiberThread";
+    jclass clazz = env->FindClass(name);
+    log_info("test1: env=%p, clazz=%p", env, clazz);
+
+    if (env->ExceptionOccurred()) {
+        log_error("test1: %d: some exception happened!", __LINE__);
+        env->ExceptionDescribe();
+        env->ExceptionClear();
     }
-
-    task* wait_result() {
-        return box_.pop();
-    }
-
-    void set_body(acl::string* body) {
-        body_ = body;
-    }
-
-    acl::string* get_body(void) {
-        return body_;
-    }
-
-    JNIEnv* get_env(void) {
-        return env_;
-    }
-
-    const std::string& get_server_addr(void) const {
-        return server_addr_;
-    }
-
-    const std::string& get_server_host(void) const {
-        return server_host_;
-    }
-
-    const std::string& get_server_url(void) const {
-        return server_url_;
-    }
-
-public:
-    void debug(void) const {
-        log_info(">>task=%p: addr=%s, host=%s, url=%s<<", this,
-                server_addr_.c_str(), server_host_.c_str(), server_url_.c_str());
-        const char* name = "com/example/http/HttpFiberThread";
-        jclass clazz = env_->FindClass(name);
-        log_info(">>task=%p, env=%p, clazz=%p<<", this, env_, clazz);
-    }
-
-private:
-    JNIEnv* env_;
-    std::string server_addr_;
-    std::string server_host_;
-    std::string server_url_;
-
-private:
-    acl::tbox<task> box_;
-    acl::string* body_;
-};
-
-static void http_get(task* t) {
-    acl::string* body = new acl::string;
-
-    //t->debug();
-
-    log_info("http_get(%d): addr=%s, host=%s, url=%s", __LINE__,
-            t->get_server_addr().c_str(),
-            t->get_server_host().c_str(), t->get_server_url().c_str());
-
-    if (http_get(t->get_server_addr(), t->get_server_host(),
-            t->get_server_url(), *body)) {
-        t->set_body(body);
-    } else {
-        delete body;
-    }
-
-    t->push_result();
 }
 
-class fiber_waiter : public acl::fiber {
-public:
-    fiber_waiter(void) {
-        box_ = new acl::fiber_tbox<task>;
+static void test2(void) {
+    log_info("test2: jvm=%p", g_jvm);
+
+    JNIEnv* env = get_env();
+    if (env == NULL) {
+        log_error("test2: get_env null");
+        return;
     }
-    ~fiber_waiter(void) {}
-
-    void push(task* t) {
-        box_->push(t);
+    jclass clazz = env->GetObjectClass(g_fiber);
+    if (env->ExceptionOccurred()) {
+        log_error("test2: %d: some exception happened!", __LINE__);
+        env->ExceptionDescribe();
+        env->ExceptionClear();
     }
+    log_info("test2: env=%p, class=%p", env, clazz);
+}
 
-protected:
-    // @override
-    void run(void) {
-        while (true) {
-            log_info(">>>waiter fiber started!");
-            task* t = box_->pop();
-            go[=] {
-                http_get(t);
-            };
-        }
+static void sleep_fiber(void) {
+    while (true) {
+        sleep(2);
+        test2();
     }
+}
 
-private:
-    acl::fiber_tbox<task>* box_;
-};
-
-class fiber_sleep : public acl::fiber {
-public:
-    fiber_sleep(void) {}
-    ~fiber_sleep(void) {}
-
-protected:
-    void run(void) {
-        while (true) {
-            sleep(2);
-            //log_info(">>sleep wakeup<<<");
-        }
-    }
-};
-
-static void fiber_thread_run(acl::fiber* waiter, acl::fiber* sleeper) {
+static void fiber_thread_run(fiber_waiter* waiter) {
     waiter->start(256000);
-    sleeper->start(128000);
 
-    log_info(">>>>>>fiber schedule now<<<<");
+    go[=] {
+        sleep_fiber();
+    };
+
+    test1();
+    log_info("---------------------------------------------------------------");
+    test2();
+
+    log_info(">>>>>>fiber schedule started<<<");
     acl::fiber::schedule();
-    log_info("===============fiber schedule stopped==========");
+    log_info(">>>>>>fiber schedule stopped<<<");
 }
 
 extern "C" JNIEXPORT jlong JNICALL
@@ -195,9 +119,19 @@ Java_com_example_http_HttpFiberThread_FiberSchedule(
 {
     log_open();
 
-    acl::fiber* waiter = new fiber_waiter;
-    acl::fiber* sleeper = new fiber_sleep;
-    std::thread* thread = new std::thread(fiber_thread_run, waiter, sleeper);
+    // 设置 JVM 全局变量
+    env->GetJavaVM(&g_jvm);
+    g_fiber = env->NewGlobalRef(me);
+
+    log_info("FiberSchedule: first g_jvm=%p", g_jvm);
+
+    // create waiter fiber to wait for http task
+    fiber_waiter* waiter = new fiber_waiter;
+    test1();
+    log_info("---------------------------------------------------------------");
+
+    // create one thread to schedule fibers process
+    std::thread* thread = new std::thread(fiber_thread_run, waiter);
     thread->detach();
     return (jlong) waiter;
 }
@@ -207,29 +141,31 @@ Java_com_example_http_HttpFiberThread_HttpGet(
         JNIEnv* env,
         jobject me,
         jlong o,
-        jstring addr,
         jstring host,
+        jint port,
         jstring url)
 {
     fiber_waiter* waiter = (fiber_waiter*) o;
 
-    std::string server_addr, server_host, server_url;
-    JString2String(env, addr, server_addr);
+    std::string server_host, server_url;
     JString2String(env, host, server_host);
     JString2String(env, url, server_url);
 
-    log_info(">>>HttpGet: addr=%s, host=%s, url=%s",
-            server_addr.c_str(), server_host.c_str(), server_url.c_str());
+    log_info("%s(%d), HttpGet: host=%s, port=%d, url=%s", __FILE__, __LINE__,
+            server_host.c_str(), port, server_url.c_str());
 
-    task t(env, server_addr.c_str(), server_host.c_str(), server_url.c_str());
-    t.debug();
+    http_task t(env, server_host.c_str(), port, server_url.c_str());
 
+    // add one http request to waiting queue
     waiter->push(&t);
-    t.wait_result();
-    acl::string* s = t.get_body();
-    if (s == NULL) {
+
+    // waiting for the http result
+    t.wait();
+
+    const acl::string& s = t.body();
+    if (s.empty()) {
         return NULL;
     }
 
-    return String2JString(env, s->c_str());
+    return String2JString(env, s.c_str());
 }

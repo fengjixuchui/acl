@@ -81,6 +81,9 @@
     <ClCompile Include="src\common\pthread_patch.c">
       <Filter>源文件\common</Filter>
     </ClCompile>
+    <ClCompile Include="src\common\read_wait.c">
+      <Filter>源文件\common</Filter>
+    </ClCompile>
     <ClCompile Include="src\common\ring.c">
       <Filter>源文件\common</Filter>
     </ClCompile>
@@ -105,9 +108,6 @@
     <ClCompile Include="src\event\event_select.c">
       <Filter>源文件\event</Filter>
     </ClCompile>
-    <ClCompile Include="src\hook\dns_init.c">
-      <Filter>源文件\hook</Filter>
-    </ClCompile>
     <ClCompile Include="src\hook\epoll.c">
       <Filter>源文件\hook</Filter>
     </ClCompile>
@@ -129,7 +129,10 @@
     <ClCompile Include="src\hook\socket.c">
       <Filter>源文件\hook</Filter>
     </ClCompile>
-    <ClCompile Include="src\dns\dns.c">
+    <ClCompile Include="src\dns\resolver.c">
+      <Filter>源文件\dns</Filter>
+    </ClCompile>
+    <ClCompile Include="src\dns\rfc1035.c">
       <Filter>源文件\dns</Filter>
     </ClCompile>
     <ClCompile Include="src\dns\sane_inet.c">
@@ -245,7 +248,10 @@
     <ClInclude Include="src\hook\hook.h">
       <Filter>源文件\hook</Filter>
     </ClInclude>
-    <ClInclude Include="src\dns\dns.h">
+    <ClInclude Include="src\dns\resolver.h">
+      <Filter>源文件\dns</Filter>
+    </ClInclude>
+    <ClInclude Include="src\dns\rfc1035.h">
       <Filter>源文件\dns</Filter>
     </ClInclude>
     <ClInclude Include="src\dns\sane_inet.h">

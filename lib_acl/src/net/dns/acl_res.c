@@ -17,11 +17,10 @@
 #include "stdlib/acl_stdlib.h"
 #include "net/acl_vstream_net.h"
 #include "net/acl_sane_inet.h"
+#include "net/rfc1035.h"
 #include "net/acl_res.h"
 
 #endif
-
-#include "rfc1035.h"
 
 static int __conn_timeout = 10;
 static int __rw_timeout   = 10;
@@ -182,12 +181,13 @@ static int res_lookup(ACL_RES *res, const char *data, int dlen,
 	}
 }
 
-ACL_DNS_DB *acl_res_lookup(ACL_RES *res, const char *domain)
+static ACL_DNS_DB *acl_res_lookup_with_type(ACL_RES *res,
+	const char *domain, int type)
 {
 	ACL_DNS_DB *dns_db;
 	char  buf[1024];
 	ssize_t ret, i;
-	rfc1035_message *answers;
+	ACL_RFC1035_MESSAGE *answers;
 	ACL_HOSTNAME *phost;
 	time_t  begin;
 
@@ -203,7 +203,26 @@ ACL_DNS_DB *acl_res_lookup(ACL_RES *res, const char *domain)
 	}
 
 	memset(buf, 0, sizeof(buf));
-	ret = (ssize_t) rfc1035BuildAQuery(domain, buf, sizeof(buf), res->cur_qid++, NULL);
+
+#ifdef	AF_INET6
+	if (type == AF_INET6) {
+		ret = (ssize_t) acl_rfc1035_build_query4aaaa(domain, buf,
+			sizeof(buf), res->cur_qid++, NULL);
+	} else {
+		ret = (ssize_t) acl_rfc1035_build_query4a(domain, buf,
+			sizeof(buf), res->cur_qid++, NULL);
+	}
+#else
+	(void) type;
+	ret = (ssize_t) acl_rfc1035_build_query4a(domain, buf, sizeof(buf),
+		res->cur_qid++, NULL);
+#endif
+
+	if (ret == 0) {
+		acl_msg_error("%s(%d), %s: build a query error",
+			__FILE__, __LINE__, __FUNCTION__);
+		return NULL;
+	}
 
 	(void) time(&begin);
 	ret = res_lookup(res, buf, (int) ret, buf, sizeof(buf));
@@ -213,31 +232,60 @@ ACL_DNS_DB *acl_res_lookup(ACL_RES *res, const char *domain)
 		return NULL;
 	}
 
-	ret = rfc1035MessageUnpack(buf, ret, &answers);
+	ret = acl_rfc1035_message_unpack(buf, ret, &answers);
 	if (ret < 0) {
 		res->errnum = (int) ret;
+		if (answers) {
+			acl_rfc1035_message_destroy(answers);
+		}
 		return NULL;
 	} else if (ret == 0) {
-		rfc1035MessageDestroy(answers);
+		if (answers) {
+			acl_rfc1035_message_destroy(answers);
+		}
 		res->errnum = ACL_RES_ERR_NULL;
 		return NULL;
 	}
 
 	dns_db = acl_netdb_new(domain);
 
-	for (i = 0; i < ret; i++) {
-		if (answers->answer[i].type == RFC1035_TYPE_A) {
+	for (i = 0; i < answers->ancount; i++) {
+		if (answers->answer[i].type == ACL_RFC1035_TYPE_A) {
 			phost = acl_mycalloc(1, sizeof(ACL_HOSTNAME));
 
 			memcpy(&phost->saddr.in.sin_addr,
 				answers->answer[i].rdata, 4);
-			inet_ntop(AF_INET, &phost->saddr.in.sin_addr,
-				phost->ip, sizeof(phost->ip));
+			if (!inet_ntop(AF_INET, &phost->saddr.in.sin_addr,
+				phost->ip, sizeof(phost->ip))) {
 
+				acl_myfree(phost);
+				continue;
+			}
+
+			phost->saddr.sa.sa_family = AF_INET;
 			phost->ttl = answers->answer[i].ttl;
-
+			phost->type = ACL_HOSTNAME_TYPE_IPV4;
 			(void) acl_array_append(dns_db->h_db, phost);
 			dns_db->size++;
+#ifdef	AF_INET6
+		} else if (answers->answer[i].type == ACL_RFC1035_TYPE_AAAA) {
+			phost = acl_mycalloc(1, sizeof(ACL_HOSTNAME));
+
+			memcpy(&phost->saddr.in6.sin6_addr,
+				answers->answer[i].rdata, 16);
+			if (!inet_ntop(AF_INET6, &phost->saddr.in6.sin6_addr,
+				phost->ip, sizeof(phost->ip))) {
+
+				acl_myfree(phost);
+				continue;
+			}
+
+			phost->saddr.sa.sa_family = AF_INET6;
+			phost->ttl = answers->answer[i].ttl;
+			phost->type = ACL_HOSTNAME_TYPE_IPV6;
+			(void) acl_array_append(dns_db->h_db, phost);
+			dns_db->size++;
+#endif
 		} else if (acl_msg_verbose) {
 			acl_msg_error("%s(%d), %s: answer type %d, domain %s",
 				__FILE__, __LINE__, __FUNCTION__,
@@ -245,9 +293,21 @@ ACL_DNS_DB *acl_res_lookup(ACL_RES *res, const char *domain)
 		}
 	}
 
-	rfc1035MessageDestroy(answers);
+	acl_rfc1035_message_destroy(answers);
 	return dns_db;
 }
+
+ACL_DNS_DB *acl_res_lookup(ACL_RES *res, const char *domain)
+{
+	return acl_res_lookup_with_type(res, domain, AF_INET);
+}
+
+#ifdef	AF_INET6
+ACL_DNS_DB *acl_res_lookup6(ACL_RES *res, const char *domain)
+{
+	return acl_res_lookup_with_type(res, domain, AF_INET6);
+}
+#endif
 
 const char *acl_res_strerror(int errnum)
 {
@@ -271,7 +331,7 @@ const char *acl_res_strerror(int errnum)
 		}
 	}
 
-	return rfc1035Strerror(errnum);
+	return acl_rfc1035_strerror(errnum);
 }
 
 const char *acl_res_errmsg(const ACL_RES *res)
