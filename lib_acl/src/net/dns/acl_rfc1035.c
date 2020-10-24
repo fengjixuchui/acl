@@ -767,37 +767,32 @@ static ACL_RFC1035_RR *rfc1035_unpack2rr(const char *buf, size_t sz,
 	return rr;
 }
 
-int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE **answer)
+ACL_RFC1035_MESSAGE *acl_rfc1035_response_unpack(const char *buf, size_t sz)
 {
 	int i, nr;
 	size_t off = 0;
 	ACL_RFC1035_MESSAGE *msg;
 
 	errno = 0;
-	*answer = NULL;
 	msg = (ACL_RFC1035_MESSAGE*) acl_mycalloc(1, sizeof(*msg));
 
 	if (rfc1035_header_unpack(buf + off, sz - off, &off, msg)) {
 		ACL_RFC1035_UNPACK_DEBUG;
 		rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
 		acl_rfc1035_message_destroy(msg);
-		*answer = NULL;
-		return -ACL_RFC1035_UNPACK_ERROR;
+		return NULL;
 	}
 
 	if (msg->rcode) {
-		int ret = -((int) msg->rcode);
 		ACL_RFC1035_UNPACK_DEBUG;
 		rfc1035_set_errno((int) msg->rcode);
 		acl_rfc1035_message_destroy(msg);
-		*answer = NULL;
-		return ret;
+		return NULL;
 	}
 
 	if (msg->ancount == 0) {
 		acl_rfc1035_message_destroy(msg);
-		*answer = NULL;
-		return 0;
+		return NULL;
 	}
 
 	if (msg->qdcount != 1) {
@@ -805,7 +800,7 @@ int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE *
 		ACL_RFC1035_UNPACK_DEBUG;
 		rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
 		acl_rfc1035_message_destroy(msg);
-		return -ACL_RFC1035_UNPACK_ERROR;
+		return NULL;
 	}
 
 	msg->query = (ACL_RFC1035_QUERY*) acl_mycalloc((int) msg->qdcount,
@@ -816,7 +811,7 @@ int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE *
 			ACL_RFC1035_UNPACK_DEBUG;
 			rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
 			acl_rfc1035_message_destroy(msg);
-			return -ACL_RFC1035_UNPACK_ERROR;
+			return NULL;
 		}
 	}
 
@@ -829,9 +824,8 @@ int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE *
 		 */
 		ACL_RFC1035_UNPACK_DEBUG;
 		acl_rfc1035_message_destroy(msg);
-		*answer = NULL;
 		rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
-		return -ACL_RFC1035_UNPACK_ERROR;
+		return NULL;
 	}
 
 	if (msg->nscount > 0) {
@@ -841,9 +835,8 @@ int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE *
 		if (msg->authority == NULL) {
 			ACL_RFC1035_UNPACK_DEBUG;
 			acl_rfc1035_message_destroy(msg);
-			*answer = NULL;
 			rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
-			return -ACL_RFC1035_UNPACK_ERROR;
+			return NULL;
 		}
 	}
 
@@ -854,14 +847,57 @@ int acl_rfc1035_message_unpack(const char *buf, size_t sz, ACL_RFC1035_MESSAGE *
 		if (msg->additional == NULL) {
 			ACL_RFC1035_UNPACK_DEBUG;
 			acl_rfc1035_message_destroy(msg);
-			*answer = NULL;
 			rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
-			return -ACL_RFC1035_UNPACK_ERROR;
+			return NULL;
 		}
 	}
 
-	*answer = msg;
-	return nr;
+	return msg;
+}
+
+ACL_RFC1035_MESSAGE *acl_rfc1035_request_unpack(const char *buf, size_t sz)
+{
+	int i;
+	size_t off = 0;
+	ACL_RFC1035_MESSAGE *msg;
+
+	errno = 0;
+	msg = (ACL_RFC1035_MESSAGE*) acl_mycalloc(1, sizeof(*msg));
+
+	if (rfc1035_header_unpack(buf + off, sz - off, &off, msg)) {
+		ACL_RFC1035_UNPACK_DEBUG;
+		rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
+		acl_rfc1035_message_destroy(msg);
+		return NULL;
+	}
+
+	if (msg->rcode) {
+		ACL_RFC1035_UNPACK_DEBUG;
+		rfc1035_set_errno((int) msg->rcode);
+		acl_rfc1035_message_destroy(msg);
+		return NULL;
+	}
+
+	if (msg->qdcount != 1) {
+		/* This can not be an answer to our queries.. */
+		ACL_RFC1035_UNPACK_DEBUG;
+		rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
+		acl_rfc1035_message_destroy(msg);
+		return NULL;
+	}
+
+	msg->query = (ACL_RFC1035_QUERY*) acl_mycalloc((int) msg->qdcount,
+			sizeof(ACL_RFC1035_QUERY));
+
+	for (i = 0; i < (int) msg->qdcount; i++) {
+		if (rfc1035_query_unpack(buf, sz, &off, &msg->query[i])) {
+			ACL_RFC1035_UNPACK_DEBUG;
+			rfc1035_set_errno(ACL_RFC1035_UNPACK_ERROR);
+			acl_rfc1035_message_destroy(msg);
+		}
+	}
+
+	return msg;
 }
 
 /****************************************************************************/
@@ -1013,6 +1049,11 @@ size_t acl_rfc1035_build_reply(const ACL_RFC1035_REPLY *reply, char *buf, size_t
 	size_t offset = 0;
 	int   i;
 
+	if (reply->ips == NULL || reply->ips->argc <= 0) {
+		acl_msg_error("ips null");
+		return 0;
+	}
+
 	memset(&h, '\0', sizeof(h));
 	h.id = reply->qid;
 	h.qr = 1;		/* response */
@@ -1033,9 +1074,9 @@ size_t acl_rfc1035_build_reply(const ACL_RFC1035_REPLY *reply, char *buf, size_t
 
 	for (i = 0; i < reply->ips->argc; i++) {
 		memset(&rr, 0, sizeof(rr));
-		snprintf(rr.name, sizeof(rr.name), "%s", reply->hostname);
+		ACL_SAFE_STRNCPY(rr.name, reply->hostname, sizeof(rr.name));
 		rr.type = reply->ip_type;
-		rr.tclass = htons(ACL_RFC1035_CLASS_IN);
+		rr.tclass = ACL_RFC1035_CLASS_IN;
 		rr.ttl = reply->ttl;
 
 		if (!save_addr2rr(reply->ip_type, reply->ips->argv[i], &rr)) {
@@ -1050,7 +1091,7 @@ size_t acl_rfc1035_build_reply(const ACL_RFC1035_REPLY *reply, char *buf, size_t
 
 	if (h.nscount) {
 		memset(&rr, 0, sizeof(rr));
-		snprintf(rr.name, sizeof(rr.name), "%s", reply->domain_root);
+		ACL_SAFE_STRNCPY(rr.name, reply->domain_root, sizeof(rr.name));
 		rr.type = ACL_RFC1035_TYPE_NS;
 		rr.tclass = ACL_RFC1035_CLASS_IN;
 		rr.ttl = reply->ttl;
@@ -1062,7 +1103,7 @@ size_t acl_rfc1035_build_reply(const ACL_RFC1035_REPLY *reply, char *buf, size_t
 
 	if (h.arcount) {
 		memset(&rr, 0, sizeof(rr));
-		snprintf(rr.name, sizeof(rr.name), "%s", reply->dns_name);
+		ACL_SAFE_STRNCPY(rr.name, reply->dns_name, sizeof(rr.name));
 		rr.type = reply->ip_type;
 		rr.tclass = ACL_RFC1035_CLASS_IN;
 		rr.ttl = reply->ttl;
